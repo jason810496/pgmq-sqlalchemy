@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "pgmq-sqlalchemy"
+version = "0.1.0"
+description = "Python client using sqlalchemy ORM for the PGMQ Postgres extension."
+authors = ["jason810496 <810496@email.wlsh.tyc.edu.tw>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+SQLAlchemy = "^2.0.31"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.2"
+asyncpg = "^0.29.0"
+greenlet = "^3.0.3"
+pg8000 = "^1.31.2"
+psycopg = "^3.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
