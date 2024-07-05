@@ -1,8 +1,8 @@
 import asyncio
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from ._types import ENGINE_TYPE
 
@@ -36,12 +36,18 @@ class PGMQueue:
         elif engine:
             self.engine = engine
             self.is_async = self.engine.dialect.is_async
-            self.session_maker = sessionmaker(bind=self.engine, class_=get_session_type(self.engine))
+            self.session_maker = sessionmaker(
+                bind=self.engine, class_=get_session_type(self.engine)
+            )
         else:
-            self.engine = create_async_engine(dsn) if is_async_dsn(dsn) else create_engine(dsn)
+            self.engine = (
+                create_async_engine(dsn) if is_async_dsn(dsn) else create_engine(dsn)
+            )
             self.is_async = self.engine.dialect.is_async
-            self.session_maker = sessionmaker(bind=self.engine, class_=get_session_type(self.engine))
-        
+            self.session_maker = sessionmaker(
+                bind=self.engine, class_=get_session_type(self.engine)
+            )
+
         if self.is_async:
             self.loop = asyncio.new_event_loop()
 
@@ -70,7 +76,9 @@ class PGMQueue:
         """Create a new queue."""
         with self.session_maker() as session:
             if unlogged:
-                session.execute(text("select pgmq.create_unlogged(:queue);"), {"queue": queue})
+                session.execute(
+                    text("select pgmq.create_unlogged(:queue);"), {"queue": queue}
+                )
             else:
                 session.execute(text("select pgmq.create(:queue);"), {"queue": queue})
             session.commit()
@@ -79,13 +87,19 @@ class PGMQueue:
         """Create a new queue."""
         async with self.session_maker() as session:
             if unlogged:
-                await session.execute(text("select pgmq.create_unlogged(:queue);"), {"queue": queue})
+                await session.execute(
+                    text("select pgmq.create_unlogged(:queue);"), {"queue": queue}
+                )
             else:
-                await session.execute(text("select pgmq.create(:queue);"), {"queue": queue})
+                await session.execute(
+                    text("select pgmq.create(:queue);"), {"queue": queue}
+                )
             await session.commit()
 
     def create_queue(self, queue: str, unlogged: bool = False) -> None:
         """Create a new queue."""
         if self.is_async:
-            return self.loop.run_until_complete(self._create_queue_async(queue, unlogged))
+            return self.loop.run_until_complete(
+                self._create_queue_async(queue, unlogged)
+            )
         return self._create_queue_sync(queue, unlogged)

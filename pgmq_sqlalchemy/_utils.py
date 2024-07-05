@@ -3,13 +3,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ._types import ENGINE_TYPE, SESSION_TYPE
 
+
 def get_session_type(engine: ENGINE_TYPE) -> SESSION_TYPE:
     if engine.dialect.is_async:
         return AsyncSession
     return Session
 
+
 def is_async_session_maker(session_maker: sessionmaker) -> bool:
     return AsyncSession in session_maker.class_.__mro__
+
 
 def is_async_dsn(dsn: str) -> bool:
     return dsn.startswith("postgresql+asyncpg")
