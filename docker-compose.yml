@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  pgmq_postgres:
+    container_name: pgmq_postgres
+    image: quay.io/tembo/pg16-pgmq:v4c7423b
+    env_file:
+      - pgmq_postgres.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./stateful_volumes/pgmq_postgres:/var/lib/postgresql
+
+  pgmq_tests:
+    container_name: pgmq_tests
+    build:
+      context: .
+      dockerfile: dockerfile
+    env_file:
+      - pgmq_tests.env
+    depends_on:
+      - pgmq_postgres
+
+networks:
+  default:
+    name: pgmq_sqlalchemy
