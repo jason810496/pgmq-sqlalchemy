@@ -1,18 +1,43 @@
 import os
 
 import pytest 
+from pytest import FixtureRequest
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, Session
+
 from pgmq_sqlalchemy import PGMQueue
+from tests.constant import ASYNC_DRIVERS , SYNC_DRIVERS
 
-@pytest.fixture(scope="function")
-def get_dsn():
-    return os.getenv("PG_DSN", "postgresql://postgres:postgres@localhost:5432/postgres")
+@pytest.fixture(scope="module")
+def get_sa_host():
+    return os.getenv("SQLALCHEMY_HOST", "localhost")
 
-@pytest.fixture(scope="function")
-def get_async_dsn():
-    return os.getenv("PG_ASYNC_DSN", "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres")
+@pytest.fixture(scope="module")
+def get_sa_port():
+    return os.getenv("SQLALCHEMY_PORT", "5432")
+
+@pytest.fixture(scope="module")
+def get_sa_user():
+    return os.getenv("SQLALCHEMY_USER","postgres")
+
+@pytest.fixture(scope="module")
+def get_sa_password():
+    return os.getenv("SQLALCHEMY_PASSWORD","postgres")
+
+@pytest.fixture(scope="module")
+def get_sa_db():
+    return os.getenv("SQLALCHEMY_DB","postgres")
+
+@pytest.fixture(scope="function", params=SYNC_DRIVERS)
+def get_dsn(request:FixtureRequest,get_sa_host, get_sa_port, get_sa_user, get_sa_password, get_sa_db):
+    driver = request.param
+    return f"postgresql+{driver}://{get_sa_user}:{get_sa_password}@{get_sa_host}:{get_sa_port}/{get_sa_db}"
+
+@pytest.fixture(scope="function", params=ASYNC_DRIVERS)
+def get_async_dsn(request:FixtureRequest,get_sa_host, get_sa_port, get_sa_user, get_sa_password, get_sa_db):
+    driver = request.param
+    return f"postgresql+{driver}://{get_sa_user}:{get_sa_password}@{get_sa_host}:{get_sa_port}/{get_sa_db}"
 
 @pytest.fixture(scope="function")
 def get_engine(get_dsn):
