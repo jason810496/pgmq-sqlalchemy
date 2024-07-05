@@ -16,6 +16,7 @@ asyncpg = "^0.29.0"
 greenlet = "^3.0.3"
 pg8000 = "^1.31.2"
 psycopg = "^3.2.1"
+psycopg2-binary = "^2.9.9"
 
 [build-system]
 requires = ["poetry-core"]
