@@ -43,7 +43,7 @@ class PGMQueue:
             self.session_maker = sessionmaker(bind=self.engine, class_=get_session_type(self.engine))
         
         if self.is_async:
-            self.loop = asyncio.get_event_loop()
+            self.loop = asyncio.new_event_loop()
 
         # create pgmq schema if not exists
         self._check_schema()
