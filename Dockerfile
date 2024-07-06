@@ -62,4 +62,4 @@ COPY ./tests /pgmq_sqlalchemy_test/tests
 
 WORKDIR /pgmq_sqlalchemy_test
 
-CMD ["python", "-m", "pytest", "-sv" , "tests"]
+CMD ["python", "-m", "pytest", "-sv" , "tests", "--cov=pgmq_sqlalchemy.queue", "-n" , "4" ]
