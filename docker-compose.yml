@@ -7,6 +7,7 @@ services:
       - pgmq_postgres.env
     ports:
       - "5432:5432"
+    command: ["-c", "max_connections=20000"]
     volumes:
       - ./stateful_volumes/pgmq_postgres:/var/lib/postgresql
 
