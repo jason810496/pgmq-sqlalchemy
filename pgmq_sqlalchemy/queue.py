@@ -19,6 +19,7 @@ class PGMQueue:
     engine: ENGINE_TYPE = None
     session_maker: sessionmaker = None
     is_async: bool = False
+    is_pg_partman_ext_checked: bool = False
     loop: asyncio.AbstractEventLoop = None
 
     def __init__(
@@ -51,26 +52,50 @@ class PGMQueue:
         if self.is_async:
             self.loop = asyncio.new_event_loop()
 
-        # create pgmq schema if not exists
-        self._check_schema()
+        # create pgmq extension if not exists
+        self._check_pgmq_ext()
 
-    async def _check_schema_async(self) -> None:
-        """Check if the pgmq schema exists."""
+    async def _check_pgmq_ext_async(self) -> None:
+        """Check if the pgmq extension exists."""
         async with self.session_maker() as session:
             await session.execute(text("create extension if not exists pgmq cascade;"))
             await session.commit()
 
-    def _check_schema_sync(self) -> None:
-        """Check if the pgmq schema exists."""
+    def _check_pgmq_ext_sync(self) -> None:
+        """Check if the pgmq extension exists."""
         with self.session_maker() as session:
             session.execute(text("create extension if not exists pgmq cascade;"))
             session.commit()
 
-    def _check_schema(self) -> None:
-        """Check if the pgmq schema exists."""
+    def _check_pgmq_ext(self) -> None:
+        """Check if the pgmq extension exists."""
         if self.is_async:
-            return self.loop.run_until_complete(self._check_schema_async())
-        return self._check_schema_sync()
+            return self.loop.run_until_complete(self._check_pgmq_ext_async())
+        return self._check_pgmq_ext_sync()
+
+    async def _check_pg_partman_ext_async(self) -> None:
+        """Check if the pg_partman extension exists."""
+        async with self.session_maker() as session:
+            await session.execute(
+                text("create extension if not exists pg_partman cascade;")
+            )
+            await session.commit()
+
+    def _check_pg_partman_ext_sync(self) -> None:
+        """Check if the pg_partman extension exists."""
+        with self.session_maker() as session:
+            session.execute(text("create extension if not exists pg_partman cascade;"))
+            session.commit()
+
+    def _check_pg_partman_ext(self) -> None:
+        """Check if the pg_partman extension exists."""
+        if self.is_pg_partman_ext_checked:
+            return
+        self.is_pg_partman_ext_checked
+
+        if self.is_async:
+            return self.loop.run_until_complete(self._check_pg_partman_ext_async())
+        return self._check_pg_partman_ext_sync()
 
     def _create_queue_sync(self, queue: str, unlogged: bool = False) -> None:
         """Create a new queue."""
@@ -103,3 +128,75 @@ class PGMQueue:
                 self._create_queue_async(queue, unlogged)
             )
         return self._create_queue_sync(queue, unlogged)
+
+    def _create_partitioned_queue_sync(
+        self,
+        queue_name: str,
+        partition_interval: str,
+        retention_interval: str,
+    ) -> None:
+        """Create a new partitioned queue."""
+        with self.session_maker() as session:
+            session.execute(
+                text(
+                    "select pgmq.create_partitioned(:queue_name, :partition_interval, :retention_interval);"
+                ),
+                {
+                    "queue_name": queue_name,
+                    "partition_interval": partition_interval,
+                    "retention_interval": retention_interval,
+                },
+            )
+            session.commit()
+
+    async def _create_partitioned_queue_async(
+        self,
+        queue_name: str,
+        partition_interval: str,
+        retention_interval: str,
+    ) -> None:
+        """Create a new partitioned queue."""
+        async with self.session_maker() as session:
+            await session.execute(
+                text(
+                    "select pgmq.create_partitioned(:queue_name, :partition_interval, :retention_interval);"
+                ),
+                {
+                    "queue_name": queue_name,
+                    "partition_interval": partition_interval,
+                    "retention_interval": retention_interval,
+                },
+            )
+            await session.commit()
+
+    def create_partitioned_queue(
+        self,
+        queue_name: str,
+        partition_interval: int = 10000,
+        retention_interval: int = 100000,
+    ) -> None:
+        """Create a new queue
+
+        Note: Partitions are created PGMQ_partman which must be configured in postgresql.conf
+            Set `PGMQ_partman_bgw.interval` to set the interval for partition creation and deletion.
+            A value of 10 will create new/delete partitions every 10 seconds. This value should be tuned
+            according to the volume of messages being sent to the queue.
+
+        Args:
+            queue: The name of the queue.
+            partition_interval: The number of messages per partition. Defaults to 10,000.
+            retention_interval: The number of messages to retain. Messages exceeding this number will be dropped.
+                Defaults to 100,000.
+        """
+        # check if the pg_partman extension exists before creating a partitioned queue at runtime
+        self._check_pg_partman_ext()
+
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._create_partitioned_queue_async(
+                    queue_name, str(partition_interval), str(retention_interval)
+                )
+            )
+        return self._create_partitioned_queue_sync(
+            queue_name, str(partition_interval), str(retention_interval)
+        )
