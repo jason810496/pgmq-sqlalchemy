@@ -224,3 +224,41 @@ def test_send_batch_with_read_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     assert len(msg_read_batch) == 3
     assert [msg_read.message for msg_read in msg_read_batch] == [msg, msg, msg]
     assert [msg_read.msg_id for msg_read in msg_read_batch] == [1, 2, 3]
+
+
+def test_read_with_poll(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = {
+        "foo": "bar",
+        "hello": "world",
+    }
+    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg, msg, msg], delay=2)
+    start_time = time.time()
+    msg_reads = pgmq.read_with_poll(
+        queue_name,
+        vt=1000,
+        qty=3,
+        max_poll_seconds=5,
+        poll_interval_ms=1001,
+    )
+    end_time = time.time()
+    duration = end_time - start_time
+    assert len(msg_reads) == 3
+    assert [msg_read.msg_id for msg_read in msg_reads] == msg_ids[:3]
+    assert duration < 5 and duration > 2
+
+
+def test_read_with_poll_with_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    start_time = time.time()
+    msg_reads = pgmq.read_with_poll(
+        queue_name,
+        vt=1000,
+        qty=3,
+        max_poll_seconds=2,
+        poll_interval_ms=100,
+    )
+    end_time = time.time()
+    duration = end_time - start_time
+    assert msg_reads is None
+    assert duration > 1.9
