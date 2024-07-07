@@ -198,3 +198,29 @@ def test_read_batch_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
     msg_read = pgmq.read_batch(queue_name, 3)
     assert msg_read is None
+
+
+def test_send_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = {
+        "foo": "bar",
+        "hello": "world",
+    }
+    msg_ids = pgmq.send_batch(queue_name=queue_name, messages=[msg, msg, msg])
+    assert len(msg_ids) == 3
+    assert msg_ids == [1, 2, 3]
+
+
+def test_send_batch_with_read_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = {
+        "foo": "bar",
+        "hello": "world",
+    }
+    msg_ids = pgmq.send_batch(queue_name=queue_name, messages=[msg, msg, msg])
+    assert len(msg_ids) == 3
+    assert msg_ids == [1, 2, 3]
+    msg_read_batch = pgmq.read_batch(queue_name, 3)
+    assert len(msg_read_batch) == 3
+    assert [msg_read.message for msg_read in msg_read_batch] == [msg, msg, msg]
+    assert [msg_read.msg_id for msg_read in msg_read_batch] == [1, 2, 3]
