@@ -594,3 +594,37 @@ class PGMQueue:
         if self.is_async:
             return self.loop.run_until_complete(self._pop_async(queue_name))
         return self._pop_sync(queue_name)
+
+    def _delete_sync(
+        self,
+        queue_name: str,
+        msg_id: int,
+    ) -> bool:
+        with self.session_maker() as session:
+            # should add explicit type casts to choose the correct candidate function
+            row = session.execute(
+                text(f"select * from pgmq.delete('{queue_name}',{msg_id}::BIGINT);")
+            ).fetchone()
+            session.commit()
+        return row[0]
+
+    async def _delete_async(
+        self,
+        queue_name: str,
+        msg_id: int,
+    ) -> bool:
+        async with self.session_maker() as session:
+            # should add explicit type casts to choose the correct candidate function
+            row = (
+                await session.execute(
+                    text(f"select * from pgmq.delete('{queue_name}',{msg_id}::BIGINT);")
+                )
+            ).fetchone()
+            await session.commit()
+        return row[0]
+
+    def delete(self, queue_name: str, msg_id: int) -> bool:
+        """Delete a message from the queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._delete_async(queue_name, msg_id))
+        return self._delete_sync(queue_name, msg_id)
