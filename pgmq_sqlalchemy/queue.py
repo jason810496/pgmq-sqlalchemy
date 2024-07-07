@@ -1,12 +1,13 @@
 import asyncio
-from typing import List
+from typing import List, Optional
+import json
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from .schema import Message
 from ._types import ENGINE_TYPE
-
 from ._utils import (
     get_session_type,
     is_async_session_maker,
@@ -19,6 +20,9 @@ class PGMQueue:
 
     engine: ENGINE_TYPE = None
     session_maker: sessionmaker = None
+    delay: int = 0
+    vt: int = 30
+
     is_async: bool = False
     is_pg_partman_ext_checked: bool = False
     loop: asyncio.AbstractEventLoop = None
@@ -234,7 +238,6 @@ class PGMQueue:
                 {"queue": queue, "partitioned": partitioned},
             ).fetchone()
             session.commit()
-            print(row)
             return row[0]
 
     async def _drop_queue_async(self, queue: str, partitioned: bool = False) -> bool:
@@ -247,7 +250,6 @@ class PGMQueue:
                 )
             ).fetchone()
             await session.commit()
-            print(row)
             return row[0]
 
     def drop_queue(self, queue: str, partitioned: bool = False) -> bool:
@@ -287,3 +289,70 @@ class PGMQueue:
         if self.is_async:
             return self.loop.run_until_complete(self._list_queues_async())
         return self._list_queues_sync()
+
+    def _send_sync(self, queue_name: str, message: str, delay: int = 0) -> int:
+        with self.session_maker() as session:
+            row = (
+                session.execute(
+                    text("select * from pgmq.send(:queue_name,:message,:delay);"),
+                    {"queue_name": queue_name, "message": message, "delay": delay},
+                )
+            ).fetchone()
+            session.commit()
+        return row[0]
+
+    async def _send_async(self, queue_name: str, message: str, delay: int = 0) -> int:
+        async with self.session_maker() as session:
+            row = (
+                await session.execute(
+                    text("select * from pgmq.send(:queue_name,:message,:delay);"),
+                    {"queue_name": queue_name, "message": message, "delay": delay},
+                )
+            ).fetchone()
+            await session.commit()
+        return row[0]
+
+    def send(self, queue_name: str, message: dict, delay: int = 0) -> int:
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._send_async(queue_name, json.dumps(message), delay)
+            )
+        return self._send_sync(queue_name, json.dumps(message), delay)
+
+    def _read_sync(
+        self, queue_name: str, vt: Optional[int] = None
+    ) -> Optional[Message]:
+        with self.session_maker() as session:
+            row = session.execute(
+                text("select * from pgmq.read(:queue_name,:vt,1);"),
+                {"queue_name": queue_name, "vt": vt or self.vt},
+            ).fetchone()
+            session.commit()
+        if row is None:
+            return None
+        return Message(
+            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
+        )
+
+    async def _read_async(
+        self, queue_name: str, vt: Optional[int] = None
+    ) -> Optional[Message]:
+        async with self.session_maker() as session:
+            row = (
+                await session.execute(
+                    text("select * from pgmq.read(:queue_name,:vt,1);"),
+                    {"queue_name": queue_name, "vt": vt or self.vt},
+                )
+            ).fetchone()
+            await session.commit()
+        if row is None:
+            return None
+        return Message(
+            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
+        )
+
+    def read(self, queue_name: str, vt: Optional[int] = None) -> Optional[Message]:
+        """Read a message from the queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._read_async(queue_name, vt))
+        return self._read_sync(queue_name, vt)
