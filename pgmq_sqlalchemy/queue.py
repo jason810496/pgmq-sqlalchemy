@@ -1,4 +1,5 @@
 import asyncio
+from typing import List
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -260,3 +261,29 @@ class PGMQueue:
                 self._drop_queue_async(queue, partitioned)
             )
         return self._drop_queue_sync(queue, partitioned)
+
+    def _list_queues_sync(self) -> List[str]:
+        """List all queues."""
+        with self.session_maker() as session:
+            rows = session.execute(
+                text("select queue_name from pgmq.list_queues();")
+            ).fetchall()
+            session.commit()
+            return [row[0] for row in rows]
+
+    async def _list_queues_async(self) -> List[str]:
+        """List all queues."""
+        async with self.session_maker() as session:
+            rows = (
+                await session.execute(
+                    text("select queue_name from pgmq.list_queues();")
+                )
+            ).fetchall()
+            await session.commit()
+            return [row[0] for row in rows]
+
+    def list_queues(self) -> List[str]:
+        """List all queues."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._list_queues_async())
+        return self._list_queues_sync()
