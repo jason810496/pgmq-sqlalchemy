@@ -720,3 +720,31 @@ class PGMQueue:
                 self._archive_batch_async(queue_name, msg_ids)
             )
         return self._archive_batch_sync(queue_name, msg_ids)
+
+    def _purge_sync(self, queue_name: str) -> int:
+        """Purge a queue synchronously,return deleted_count."""
+        with self.session_maker() as session:
+            row = session.execute(
+                text("select pgmq.purge_queue(:queue_name);"),
+                {"queue_name": queue_name},
+            ).fetchone()
+            session.commit()
+        return row[0]
+
+    async def _purge_async(self, queue_name: str) -> int:
+        """Purge a queue asynchronously,return deleted_count."""
+        async with self.session_maker() as session:
+            row = (
+                await session.execute(
+                    text("select pgmq.purge_queue(:queue_name);"),
+                    {"queue_name": queue_name},
+                )
+            ).fetchone()
+            await session.commit()
+        return row[0]
+
+    def purge(self, queue_name: str) -> int:
+        """Purge a queue,return deleted_count."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._purge_async(queue_name))
+        return self._purge_sync(queue_name)

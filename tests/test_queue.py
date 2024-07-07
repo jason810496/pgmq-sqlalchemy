@@ -343,3 +343,11 @@ def test_archive_batch_not_exist(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     msg_reads = pgmq.read_batch(queue_name, 3)
     assert len(msg_reads) == 3
     assert [msg_read.msg_id for msg_read in msg_reads] == msg_ids
+
+
+def test_purge(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    assert pgmq.purge(queue_name) == 0
+    pgmq.send_batch(queue_name, [msg, msg, msg])
+    assert pgmq.purge(queue_name) == 3
