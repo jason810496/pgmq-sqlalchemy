@@ -467,3 +467,96 @@ class PGMQueue:
                 self._read_batch_async(queue_name, batch_size, vt)
             )
         return self._read_batch_sync(queue_name, batch_size, vt)
+
+    def _read_with_poll_sync(
+        self,
+        queue_name: str,
+        vt: Optional[int] = None,
+        qty: int = 1,
+        max_poll_seconds: int = 5,
+        poll_interval_ms: int = 100,
+    ) -> Optional[List[Message]]:
+        """Read messages from a queue with polling."""
+        with self.session_maker() as session:
+            rows = session.execute(
+                text(
+                    "select * from pgmq.read_with_poll(:queue_name,:vt,:qty,:max_poll_seconds,:poll_interval_ms);"
+                ),
+                {
+                    "queue_name": queue_name,
+                    "vt": vt or self.vt,
+                    "qty": qty,
+                    "max_poll_seconds": max_poll_seconds,
+                    "poll_interval_ms": poll_interval_ms,
+                },
+            ).fetchall()
+            session.commit()
+        if not rows:
+            return None
+        return [
+            Message(
+                msg_id=row[0],
+                read_ct=row[1],
+                enqueued_at=row[2],
+                vt=row[3],
+                message=row[4],
+            )
+            for row in rows
+        ]
+
+    async def _read_with_poll_async(
+        self,
+        queue_name: str,
+        vt: Optional[int] = None,
+        qty: int = 1,
+        max_poll_seconds: int = 5,
+        poll_interval_ms: int = 100,
+    ) -> Optional[List[Message]]:
+        """Read messages from a queue with polling."""
+        async with self.session_maker() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        "select * from pgmq.read_with_poll(:queue_name,:vt,:qty,:max_poll_seconds,:poll_interval_ms);"
+                    ),
+                    {
+                        "queue_name": queue_name,
+                        "vt": vt or self.vt,
+                        "qty": qty,
+                        "max_poll_seconds": max_poll_seconds,
+                        "poll_interval_ms": poll_interval_ms,
+                    },
+                )
+            ).fetchall()
+            await session.commit()
+        if not rows:
+            return None
+        return [
+            Message(
+                msg_id=row[0],
+                read_ct=row[1],
+                enqueued_at=row[2],
+                vt=row[3],
+                message=row[4],
+            )
+            for row in rows
+        ]
+
+    def read_with_poll(
+        self,
+        queue_name: str,
+        vt: Optional[int] = None,
+        qty: int = 1,
+        max_poll_seconds: int = 5,
+        poll_interval_ms: int = 100,
+    ) -> Optional[List[Message]]:
+        """Read messages from a queue with polling."""
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._read_with_poll_async(
+                    queue_name, vt, qty, max_poll_seconds, poll_interval_ms
+                )
+            )
+        return self._read_with_poll_sync(
+            queue_name, vt, qty, max_poll_seconds, poll_interval_ms
+        )
