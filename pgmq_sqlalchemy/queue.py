@@ -664,3 +664,59 @@ class PGMQueue:
                 self._delete_batch_async(queue_name, msg_ids)
             )
         return self._delete_batch_sync(queue_name, msg_ids)
+
+    def _archive_sync(self, queue_name: str, msg_id: int) -> bool:
+        """Archive a message from a queue synchronously."""
+        with self.session_maker() as session:
+            row = session.execute(
+                text(f"select pgmq.archive('{queue_name}',{msg_id}::BIGINT);")
+            ).fetchone()
+            session.commit()
+        return row[0]
+
+    async def _archive_async(self, queue_name: str, msg_id: int) -> bool:
+        """Archive a message from a queue asynchronously."""
+        async with self.session_maker() as session:
+            row = (
+                await session.execute(
+                    text(f"select pgmq.archive('{queue_name}',{msg_id}::BIGINT);")
+                )
+            ).fetchone()
+            await session.commit()
+        return row[0]
+
+    def archive(self, queue_name: str, msg_id: int) -> bool:
+        """Archive a message from a queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._archive_async(queue_name, msg_id))
+        return self._archive_sync(queue_name, msg_id)
+
+    def _archive_batch_sync(self, queue_name: str, msg_ids: List[int]) -> List[int]:
+        """Archive multiple messages from a queue synchronously."""
+        with self.session_maker() as session:
+            rows = session.execute(
+                text(f"select * from pgmq.archive('{queue_name}',ARRAY{msg_ids});")
+            ).fetchall()
+            session.commit()
+        return [row[0] for row in rows]
+
+    async def _archive_batch_async(
+        self, queue_name: str, msg_ids: List[int]
+    ) -> List[int]:
+        """Archive multiple messages from a queue asynchronously."""
+        async with self.session_maker() as session:
+            rows = (
+                await session.execute(
+                    text(f"select * from pgmq.archive('{queue_name}',ARRAY{msg_ids});")
+                )
+            ).fetchall()
+            await session.commit()
+        return [row[0] for row in rows]
+
+    def archive_batch(self, queue_name: str, msg_ids: List[int]) -> List[int]:
+        """Archive multiple messages from a queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._archive_batch_async(queue_name, msg_ids)
+            )
+        return self._archive_batch_sync(queue_name, msg_ids)
