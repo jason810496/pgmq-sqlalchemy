@@ -200,3 +200,63 @@ class PGMQueue:
         return self._create_partitioned_queue_sync(
             queue_name, str(partition_interval), str(retention_interval)
         )
+
+    def _validate_queue_name_sync(self, queue_name: str) -> None:
+        """Validate the length of a queue name."""
+        with self.session_maker() as session:
+            session.execute(
+                text("select pgmq.validate_queue_name(:queue);"), {"queue": queue_name}
+            )
+            session.commit()
+
+    async def _validate_queue_name_async(self, queue_name: str) -> None:
+        """Validate the length of a queue name."""
+        async with self.session_maker() as session:
+            await session.execute(
+                text("select pgmq.validate_queue_name(:queue);"), {"queue": queue_name}
+            )
+            await session.commit()
+
+    def validate_queue_name(self, queue_name: str) -> None:
+        """Validate the length of a queue name."""
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._validate_queue_name_async(queue_name)
+            )
+        return self._validate_queue_name_sync(queue_name)
+
+    def _drop_queue_sync(self, queue: str, partitioned: bool = False) -> bool:
+        """Drop a queue."""
+        with self.session_maker() as session:
+            row = session.execute(
+                text("select pgmq.drop_queue(:queue, :partitioned);"),
+                {"queue": queue, "partitioned": partitioned},
+            ).fetchone()
+            session.commit()
+            print(row)
+            return row[0]
+
+    async def _drop_queue_async(self, queue: str, partitioned: bool = False) -> bool:
+        """Drop a queue."""
+        async with self.session_maker() as session:
+            row = (
+                await session.execute(
+                    text("select pgmq.drop_queue(:queue, :partitioned);"),
+                    {"queue": queue, "partitioned": partitioned},
+                )
+            ).fetchone()
+            await session.commit()
+            print(row)
+            return row[0]
+
+    def drop_queue(self, queue: str, partitioned: bool = False) -> bool:
+        """Drop a queue."""
+        # check if the pg_partman extension exists before dropping a partitioned queue at runtime
+        if partitioned:
+            self._check_pg_partman_ext()
+
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._drop_queue_async(queue, partitioned)
+            )
+        return self._drop_queue_sync(queue, partitioned)
