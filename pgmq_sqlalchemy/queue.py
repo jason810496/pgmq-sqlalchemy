@@ -560,3 +560,37 @@ class PGMQueue:
         return self._read_with_poll_sync(
             queue_name, vt, qty, max_poll_seconds, poll_interval_ms
         )
+
+    def _pop_sync(self, queue_name: str) -> Optional[Message]:
+        with self.session_maker() as session:
+            row = session.execute(
+                text("select * from pgmq.pop(:queue_name);"),
+                {"queue_name": queue_name},
+            ).fetchone()
+            session.commit()
+        if row is None:
+            return None
+        return Message(
+            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
+        )
+
+    async def _pop_async(self, queue_name: str) -> Optional[Message]:
+        async with self.session_maker() as session:
+            row = (
+                await session.execute(
+                    text("select * from pgmq.pop(:queue_name);"),
+                    {"queue_name": queue_name},
+                )
+            ).fetchone()
+            await session.commit()
+        if row is None:
+            return None
+        return Message(
+            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
+        )
+
+    def pop(self, queue_name: str) -> Optional[Message]:
+        """Pop a message from the queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._pop_async(queue_name))
+        return self._pop_sync(queue_name)
