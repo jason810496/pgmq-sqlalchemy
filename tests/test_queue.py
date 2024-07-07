@@ -44,6 +44,18 @@ def test_create_same_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE, db_session):
     assert check_queue_exists(db_session, queue_name) is True
 
 
+@pgmq_deps
+def test_validate_queue_name(pgmq_fixture):
+    pgmq: PGMQueue = pgmq_fixture
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    pgmq.validate_queue_name(queue_name)
+    # `queue_name` should be a less than 48 characters
+    with pytest.raises(Exception) as e:
+        pgmq.validate_queue_name("a" * 49)
+    error_msg: str = e.value.orig
+    assert "queue name is too long, maximum length is 48 characters" in error_msg
+
+
 def test_drop_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     _ = pgmq_setup_teardown
     pass
