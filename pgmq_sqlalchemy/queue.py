@@ -1,6 +1,5 @@
 import asyncio
 from typing import List, Optional
-import json
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -12,6 +11,8 @@ from ._utils import (
     get_session_type,
     is_async_session_maker,
     is_async_dsn,
+    encode_dict_to_psql,
+    encode_list_to_psql,
 )
 
 
@@ -294,8 +295,7 @@ class PGMQueue:
         with self.session_maker() as session:
             row = (
                 session.execute(
-                    text("select * from pgmq.send(:queue_name,:message,:delay);"),
-                    {"queue_name": queue_name, "message": message, "delay": delay},
+                    text(f"select * from pgmq.send('{queue_name}',{message},{delay});")
                 )
             ).fetchone()
             session.commit()
@@ -305,8 +305,7 @@ class PGMQueue:
         async with self.session_maker() as session:
             row = (
                 await session.execute(
-                    text("select * from pgmq.send(:queue_name,:message,:delay);"),
-                    {"queue_name": queue_name, "message": message, "delay": delay},
+                    text(f"select * from pgmq.send('{queue_name}',{message},{delay});")
                 )
             ).fetchone()
             await session.commit()
@@ -316,9 +315,47 @@ class PGMQueue:
         """Send a message to a queue."""
         if self.is_async:
             return self.loop.run_until_complete(
-                self._send_async(queue_name, json.dumps(message), delay)
+                self._send_async(queue_name, encode_dict_to_psql(message), delay)
             )
-        return self._send_sync(queue_name, json.dumps(message), delay)
+        return self._send_sync(queue_name, encode_dict_to_psql(message), delay)
+
+    def _send_batch_sync(
+        self, queue_name: str, messages: str, delay: int = 0
+    ) -> List[int]:
+        with self.session_maker() as session:
+            rows = (
+                session.execute(
+                    text(
+                        f"select * from pgmq.send_batch('{queue_name}',{messages},{delay});"
+                    )
+                )
+            ).fetchall()
+            session.commit()
+        return [row[0] for row in rows]
+
+    async def _send_batch_async(
+        self, queue_name: str, messages: str, delay: int = 0
+    ) -> List[int]:
+        async with self.session_maker() as session:
+            rows = (
+                await session.execute(
+                    text(
+                        f"select * from pgmq.send_batch('{queue_name}',{messages},{delay});"
+                    )
+                )
+            ).fetchall()
+            await session.commit()
+        return [row[0] for row in rows]
+
+    def send_batch(
+        self, queue_name: str, messages: List[dict], delay: int = 0
+    ) -> List[int]:
+        """Send a batch of messages to a queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._send_batch_async(queue_name, encode_list_to_psql(messages), delay)
+            )
+        return self._send_batch_sync(queue_name, encode_list_to_psql(messages), delay)
 
     def _read_sync(
         self, queue_name: str, vt: Optional[int] = None
