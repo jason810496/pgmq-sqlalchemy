@@ -13,6 +13,7 @@ from tests.fixture_deps import (
 )
 
 from tests._utils import check_queue_exists
+from tests.constant import MSG
 
 use_fixtures = [
     pgmq_setup_teardown,
@@ -100,10 +101,7 @@ def test_list_partitioned_queues(pgmq_partitioned_setup_teardown: PGMQ_WITH_QUEU
 
 def test_send_and_read_msg(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_id: int = pgmq.send(queue_name, msg)
     msg_read = pgmq.read(queue_name)
     assert msg_read.message == msg
@@ -112,10 +110,7 @@ def test_send_and_read_msg(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_send_and_read_msg_with_delay(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_id: int = pgmq.send(queue_name, msg, delay=2)
     msg_read = pgmq.read(queue_name)
     assert msg_read is None
@@ -130,10 +125,7 @@ def test_send_and_read_msg_with_delay(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_send_and_read_msg_with_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_id: int = pgmq.send(queue_name, msg)
     msg_read = pgmq.read(queue_name, vt=2)
     assert msg_read.message == msg
@@ -149,10 +141,7 @@ def test_send_and_read_msg_with_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_send_and_read_msg_with_vt_and_delay(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_id: int = pgmq.send(queue_name, msg, delay=2)
     msg_read = pgmq.read(queue_name, vt=2)
     assert msg_read is None
@@ -180,10 +169,7 @@ def test_read_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_read_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_id_1: int = pgmq.send(queue_name, msg)
     msg_id_2: int = pgmq.send(queue_name, msg)
     msg_read = pgmq.read_batch(queue_name, 3)
@@ -202,10 +188,7 @@ def test_read_batch_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_send_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_ids = pgmq.send_batch(queue_name=queue_name, messages=[msg, msg, msg])
     assert len(msg_ids) == 3
     assert msg_ids == [1, 2, 3]
@@ -213,10 +196,7 @@ def test_send_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_send_batch_with_read_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_ids = pgmq.send_batch(queue_name=queue_name, messages=[msg, msg, msg])
     assert len(msg_ids) == 3
     assert msg_ids == [1, 2, 3]
@@ -228,10 +208,7 @@ def test_send_batch_with_read_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_read_with_poll(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    msg = {
-        "foo": "bar",
-        "hello": "world",
-    }
+    msg = MSG
     msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg, msg, msg], delay=2)
     start_time = time.time()
     msg_reads = pgmq.read_with_poll(
@@ -262,3 +239,21 @@ def test_read_with_poll_with_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     duration = end_time - start_time
     assert msg_reads is None
     assert duration > 1.9
+
+
+def test_pop(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
+    msg = pgmq.pop(queue_name)
+    assert msg.msg_id == msg_ids[0]
+    assert msg.message == MSG
+    msg_reads = pgmq.read_batch(queue_name, 3)
+    assert len(msg_reads) == 2
+    assert [msg_read.msg_id for msg_read in msg_reads] == msg_ids[1:]
+
+
+def test_pop_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = pgmq.pop(queue_name)
+    assert msg is None

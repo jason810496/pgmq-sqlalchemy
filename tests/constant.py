@@ -16,3 +16,8 @@ DRIVERS = [
     "asyncpg",
     "psycopg2cffi",
 ]
+
+MSG = {
+    "foo": "bar",
+    "hello": "world",
+}
