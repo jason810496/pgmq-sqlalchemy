@@ -313,6 +313,7 @@ class PGMQueue:
         return row[0]
 
     def send(self, queue_name: str, message: dict, delay: int = 0) -> int:
+        """Send a message to a queue."""
         if self.is_async:
             return self.loop.run_until_complete(
                 self._send_async(queue_name, json.dumps(message), delay)
@@ -356,3 +357,76 @@ class PGMQueue:
         if self.is_async:
             return self.loop.run_until_complete(self._read_async(queue_name, vt))
         return self._read_sync(queue_name, vt)
+
+    def _read_batch_sync(
+        self,
+        queue_name: str,
+        batch_size: int = 1,
+        vt: Optional[int] = None,
+    ) -> Optional[List[Message]]:
+        with self.session_maker() as session:
+            rows = session.execute(
+                text("select * from pgmq.read(:queue_name,:vt,:batch_size);"),
+                {
+                    "queue_name": queue_name,
+                    "vt": vt or self.vt,
+                    "batch_size": batch_size,
+                },
+            ).fetchall()
+            session.commit()
+        if not rows:
+            return None
+        return [
+            Message(
+                msg_id=row[0],
+                read_ct=row[1],
+                enqueued_at=row[2],
+                vt=row[3],
+                message=row[4],
+            )
+            for row in rows
+        ]
+
+    async def _read_batch_async(
+        self,
+        queue_name: str,
+        batch_size: int = 1,
+        vt: Optional[int] = None,
+    ) -> Optional[List[Message]]:
+        async with self.session_maker() as session:
+            rows = (
+                await session.execute(
+                    text("select * from pgmq.read(:queue_name,:vt,:batch_size);"),
+                    {
+                        "queue_name": queue_name,
+                        "vt": vt or self.vt,
+                        "batch_size": batch_size,
+                    },
+                )
+            ).fetchall()
+            await session.commit()
+        if not rows:
+            return None
+        return [
+            Message(
+                msg_id=row[0],
+                read_ct=row[1],
+                enqueued_at=row[2],
+                vt=row[3],
+                message=row[4],
+            )
+            for row in rows
+        ]
+
+    def read_batch(
+        self,
+        queue_name: str,
+        batch_size: int = 1,
+        vt: Optional[int] = None,
+    ) -> Optional[List[Message]]:
+        """Read a batch of messages from the queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._read_batch_async(queue_name, batch_size, vt)
+            )
+        return self._read_batch_sync(queue_name, batch_size, vt)
