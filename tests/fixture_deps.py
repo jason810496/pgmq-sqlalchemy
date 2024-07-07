@@ -71,3 +71,34 @@ def pgmq_setup_teardown(request: pytest.FixtureRequest, db_session) -> PGMQ_WITH
     yield pgmq, queue_name
     pgmq.drop_queue(queue_name)
     assert check_queue_exists(db_session, queue_name) is False
+
+
+@pytest.fixture(scope="function", params=LAZY_FIXTURES)
+def pgmq_partitioned_setup_teardown(
+    request: pytest.FixtureRequest, db_session
+) -> PGMQ_WITH_QUEUE:
+    """
+    Fixture that provides a PGMQueue instance with a unique temporary partitioned queue with setup and teardown.
+
+    Args:
+        request (pytest.FixtureRequest): The pytest fixture request object.
+        db_session (sqlalchemy.orm.Session): The SQLAlchemy session object.
+
+    Yields:
+        tuple[PGMQueue,str]: A tuple containing the PGMQueue instance and the name of the temporary queue.
+
+    Usage:
+        @pgmq_setup_teardown
+        def test_something(pgmq_setup_teardown):
+            pgmq, queue_name = pgmq_setup_teardown
+            # test code here
+
+    """
+    pgmq: PGMQueue = request.param
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    assert check_queue_exists(db_session, queue_name) is False
+    pgmq.create_partitioned_queue(queue_name)
+    assert check_queue_exists(db_session, queue_name) is True
+    yield pgmq, queue_name
+    pgmq.drop_queue(queue_name, partitioned=True)
+    assert check_queue_exists(db_session, queue_name) is False
