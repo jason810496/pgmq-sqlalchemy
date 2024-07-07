@@ -1,5 +1,6 @@
 import uuid
 import pytest
+import time
 
 from sqlalchemy.exc import ProgrammingError
 from pgmq_sqlalchemy import PGMQueue
@@ -95,3 +96,83 @@ def test_list_partitioned_queues(pgmq_partitioned_setup_teardown: PGMQ_WITH_QUEU
     pgmq, queue_name = pgmq_partitioned_setup_teardown
     queues = pgmq.list_queues()
     assert queue_name in queues
+
+
+def test_send_and_read_msg(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = {
+        "foo": "bar",
+        "hello": "world",
+    }
+    msg_id: int = pgmq.send(queue_name, msg)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+
+
+def test_send_and_read_msg_with_delay(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = {
+        "foo": "bar",
+        "hello": "world",
+    }
+    msg_id: int = pgmq.send(queue_name, msg, delay=2)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read is None
+    time.sleep(1)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read is None
+    time.sleep(1.1)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+
+
+def test_send_and_read_msg_with_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = {
+        "foo": "bar",
+        "hello": "world",
+    }
+    msg_id: int = pgmq.send(queue_name, msg)
+    msg_read = pgmq.read(queue_name, vt=2)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+    time.sleep(1.5)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read is None
+    time.sleep(0.6)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+
+
+def test_send_and_read_msg_with_vt_and_delay(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = {
+        "foo": "bar",
+        "hello": "world",
+    }
+    msg_id: int = pgmq.send(queue_name, msg, delay=2)
+    msg_read = pgmq.read(queue_name, vt=2)
+    assert msg_read is None
+    time.sleep(1)
+    msg_read = pgmq.read(queue_name, vt=2)
+    assert msg_read is None
+    time.sleep(1.1)
+    msg_read = pgmq.read(queue_name, vt=2)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+    time.sleep(1.5)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read is None
+    time.sleep(0.6)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+
+
+def test_read_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg_read = pgmq.read(queue_name)
+    assert msg_read is None
