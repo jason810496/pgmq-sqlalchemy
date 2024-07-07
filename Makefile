@@ -7,10 +7,21 @@ install: ## Install dependencies and `ruff` pre-commit hooks
 test-local: ## Run tests locally
 	poetry run pytest tests --cov=pgmq_sqlalchemy.queue
 
-test-docker: ## Run tests in docker
+
+test-docker-rebuild: ## Rebuild the docker image
 	docker rmi -f pgmq-sqlalchemy-pgmq_tests
 	docker build -t pgmq-sqlalchemy-pgmq_tests -f Dockerfile .
+
+test-docker: test-docker-rebuild ## Run tests in docker
+ifndef CMD
+	if [ -d "stateful_volumes/htmlcov" ]; then rm -r stateful_volumes/htmlcov; fi
+	if [ -d "htmlcov" ]; then rm -r htmlcov; fi
 	docker compose run --rm pgmq_tests
+	cp -r stateful_volumes/htmlcov/ htmlcov/
+	rm -r stateful_volumes/htmlcov/
+else
+	docker run --rm --entrypoint '/bin/bash' pgmq-sqlalchemy-pgmq_tests -c '$(CMD)'
+endif
 
 clear-db: ## Clear the database
 	docker compose down pgmq_postgres

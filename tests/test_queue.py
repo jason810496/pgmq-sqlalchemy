@@ -263,7 +263,7 @@ def test_delete_msg(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
     msg = MSG
     msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
-    pgmq.delete(queue_name, msg_ids[1])
+    assert pgmq.delete(queue_name, msg_ids[1]) is True
     msg_reads = pgmq.read_batch(queue_name, 3)
     assert len(msg_reads) == 2
     assert [msg_read.msg_id for msg_read in msg_reads] == [msg_ids[0], msg_ids[2]]
@@ -273,7 +273,30 @@ def test_delete_msg_not_exist(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
     msg = MSG
     msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
-    pgmq.delete(queue_name, 999)
+    assert pgmq.delete(queue_name, 999) is False
+    msg_reads = pgmq.read_batch(queue_name, 3)
+    assert len(msg_reads) == 3
+    assert [msg_read.msg_id for msg_read in msg_reads] == msg_ids
+
+
+def test_delete_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
+    assert pgmq.delete_batch(queue_name, [msg_ids[0], msg_ids[2]]) == [
+        msg_ids[0],
+        msg_ids[2],
+    ]
+    msg_reads = pgmq.read_batch(queue_name, 3)
+    assert len(msg_reads) == 1
+    assert [msg_read.msg_id for msg_read in msg_reads] == [msg_ids[1]]
+
+
+def test_delete_batch_not_exist(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
+    assert pgmq.delete_batch(queue_name, [999, 998]) == []
     msg_reads = pgmq.read_batch(queue_name, 3)
     assert len(msg_reads) == 3
     assert [msg_read.msg_id for msg_read in msg_reads] == msg_ids

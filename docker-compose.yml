@@ -20,6 +20,9 @@ services:
       - pgmq_tests.env
     depends_on:
       - pgmq_postgres
+    volumes:
+      - ./stateful_volumes/htmlcov:/pgmq_sqlalchemy_test/htmlcov
+    command: ["python","-m","pytest", "-v", "--cov=pgmq_sqlalchemy.queue", "--cov-report=html", "-n", "auto", "tests"]
 
 networks:
   default:

@@ -628,3 +628,39 @@ class PGMQueue:
         if self.is_async:
             return self.loop.run_until_complete(self._delete_async(queue_name, msg_id))
         return self._delete_sync(queue_name, msg_id)
+
+    def _delete_batch_sync(
+        self,
+        queue_name: str,
+        msg_ids: List[int],
+    ) -> List[int]:
+        # should add explicit type casts to choose the correct candidate function
+        with self.session_maker() as session:
+            rows = session.execute(
+                text(f"select * from pgmq.delete('{queue_name}',ARRAY{msg_ids});")
+            ).fetchall()
+            session.commit()
+        return [row[0] for row in rows]
+
+    async def _delete_batch_async(
+        self,
+        queue_name: str,
+        msg_ids: List[int],
+    ) -> List[int]:
+        # should add explicit type casts to choose the correct candidate function
+        async with self.session_maker() as session:
+            rows = (
+                await session.execute(
+                    text(f"select * from pgmq.delete('{queue_name}',ARRAY{msg_ids});")
+                )
+            ).fetchall()
+            await session.commit()
+        return [row[0] for row in rows]
+
+    def delete_batch(self, queue_name: str, msg_ids: List[int]) -> List[int]:
+        """Delete a batch of messages from the queue."""
+        if self.is_async:
+            return self.loop.run_until_complete(
+                self._delete_batch_async(queue_name, msg_ids)
+            )
+        return self._delete_batch_sync(queue_name, msg_ids)
