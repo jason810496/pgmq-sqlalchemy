@@ -257,3 +257,23 @@ def test_pop_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
     msg = pgmq.pop(queue_name)
     assert msg is None
+
+
+def test_delete_msg(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
+    pgmq.delete(queue_name, msg_ids[1])
+    msg_reads = pgmq.read_batch(queue_name, 3)
+    assert len(msg_reads) == 2
+    assert [msg_read.msg_id for msg_read in msg_reads] == [msg_ids[0], msg_ids[2]]
+
+
+def test_delete_msg_not_exist(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
+    pgmq.delete(queue_name, 999)
+    msg_reads = pgmq.read_batch(queue_name, 3)
+    assert len(msg_reads) == 3
+    assert [msg_read.msg_id for msg_read in msg_reads] == msg_ids
