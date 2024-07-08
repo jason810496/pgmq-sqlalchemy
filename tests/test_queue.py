@@ -3,6 +3,7 @@ import pytest
 import time
 
 from sqlalchemy.exc import ProgrammingError
+from filelock import FileLock
 from pgmq_sqlalchemy import PGMQueue
 
 from tests.fixture_deps import (
@@ -13,7 +14,7 @@ from tests.fixture_deps import (
 )
 
 from tests._utils import check_queue_exists
-from tests.constant import MSG
+from tests.constant import MSG, LOCK_FILE_NAME
 
 use_fixtures = [
     pgmq_setup_teardown,
@@ -364,16 +365,21 @@ def test_metrics(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     assert metrics.total_messages == 0
 
 
-def test_metrics_all_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE, db_session):
-    pgmq, queue_name_1 = pgmq_setup_teardown
-    queue_name_2 = f"test_queue_{uuid.uuid4().hex}"
-    pgmq.create_queue(queue_name_2)
-    pgmq.send_batch(queue_name_1, [MSG, MSG, MSG])
-    pgmq.send_batch(queue_name_2, [MSG, MSG])
-    metrics_all = pgmq.metrics_all()
-    queue_1 = [q for q in metrics_all if q.queue_name == queue_name_1][0]
-    queue_2 = [q for q in metrics_all if q.queue_name == queue_name_2][0]
-    assert queue_1.queue_length == 3
-    assert queue_2.queue_length == 2
-    assert queue_1.total_messages == 3
-    assert queue_2.total_messages == 2
+def test_metrics_all_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    # Since default PostgreSQL isolation level is `READ COMMITTED`,
+    # pytest-xdist is running in **muti-process** mode, which causes **Phantom read** !
+    # - `pgmq.metrics_all()` will first get the queue list, then get the metrics for each queue
+    # - If another process teardown the queue before the metrics are fetched, will throw an exception that the `{queue_name}` does not exist
+    with FileLock(LOCK_FILE_NAME):
+        pgmq, queue_name_1 = pgmq_setup_teardown
+        queue_name_2 = f"test_queue_{uuid.uuid4().hex}"
+        pgmq.create_queue(queue_name_2)
+        pgmq.send_batch(queue_name_1, [MSG, MSG, MSG])
+        pgmq.send_batch(queue_name_2, [MSG, MSG])
+        metrics_all = pgmq.metrics_all()
+        queue_1 = [q for q in metrics_all if q.queue_name == queue_name_1][0]
+        queue_2 = [q for q in metrics_all if q.queue_name == queue_name_2][0]
+        assert queue_1.queue_length == 3
+        assert queue_2.queue_length == 2
+        assert queue_1.total_messages == 3
+        assert queue_2.total_messages == 2

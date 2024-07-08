@@ -21,3 +21,5 @@ MSG = {
     "foo": "bar",
     "hello": "world",
 }
+
+LOCK_FILE_NAME = "pgmq.meta.lock.txt"
