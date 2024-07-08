@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from .schema import Message
+from .schema import Message, QueueMetrics
 from ._types import ENGINE_TYPE
 from ._utils import (
     get_session_type,
@@ -748,3 +748,88 @@ class PGMQueue:
         if self.is_async:
             return self.loop.run_until_complete(self._purge_async(queue_name))
         return self._purge_sync(queue_name)
+
+    def _metrics_sync(self, queue_name: str) -> Optional[QueueMetrics]:
+        """Get queue metrics synchronously."""
+        with self.session_maker() as session:
+            row = session.execute(
+                text("select * from pgmq.metrics(:queue_name);"),
+                {"queue_name": queue_name},
+            ).fetchone()
+            session.commit()
+        if row is None:
+            return None
+        return QueueMetrics(
+            queue_name=row[0],
+            queue_length=row[1],
+            newest_msg_age_sec=row[2],
+            oldest_msg_age_sec=row[3],
+            total_messages=row[4],
+        )
+
+    async def _metrics_async(self, queue_name: str) -> Optional[QueueMetrics]:
+        """Get queue metrics asynchronously."""
+        async with self.session_maker() as session:
+            row = (
+                await session.execute(
+                    text("select * from pgmq.metrics(:queue_name);"),
+                    {"queue_name": queue_name},
+                )
+            ).fetchone()
+        if row is None:
+            return None
+        return QueueMetrics(
+            queue_name=row[0],
+            queue_length=row[1],
+            newest_msg_age_sec=row[2],
+            oldest_msg_age_sec=row[3],
+            total_messages=row[4],
+        )
+
+    def metrics(self, queue_name: str) -> Optional[QueueMetrics]:
+        """Get queue metrics."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._metrics_async(queue_name))
+        return self._metrics_sync(queue_name)
+
+    def _metrics_all_sync(self) -> Optional[List[QueueMetrics]]:
+        """Get metrics for all queues synchronously."""
+        with self.session_maker() as session:
+            rows = session.execute(text("select * from pgmq.metrics_all();")).fetchall()
+        if not rows:
+            return None
+        return [
+            QueueMetrics(
+                queue_name=row[0],
+                queue_length=row[1],
+                newest_msg_age_sec=row[2],
+                oldest_msg_age_sec=row[3],
+                total_messages=row[4],
+            )
+            for row in rows
+        ]
+
+    async def _metrics_all_async(self) -> Optional[List[QueueMetrics]]:
+        """Get metrics for all queues asynchronously."""
+        async with self.session_maker() as session:
+            rows = (
+                await session.execute(text("select * from pgmq.metrics_all();"))
+            ).fetchall()
+        if not rows:
+            return None
+        return [
+            QueueMetrics(
+                queue_name=row[0],
+                queue_length=row[1],
+                newest_msg_age_sec=row[2],
+                oldest_msg_age_sec=row[3],
+                total_messages=row[4],
+            )
+            for row in rows
+        ]
+
+    def metrics_all(self) -> Optional[List[QueueMetrics]]:
+        """Get metrics for all queues."""
+        if self.is_async:
+            return self.loop.run_until_complete(self._metrics_all_async())
+        return self._metrics_all_sync()
