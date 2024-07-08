@@ -351,3 +351,29 @@ def test_purge(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     assert pgmq.purge(queue_name) == 0
     pgmq.send_batch(queue_name, [msg, msg, msg])
     assert pgmq.purge(queue_name) == 3
+
+
+def test_metrics(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    metrics = pgmq.metrics(queue_name)
+    assert metrics is not None
+    assert metrics.queue_name == queue_name
+    assert metrics.queue_length == 0
+    assert metrics.newest_msg_age_sec is None
+    assert metrics.oldest_msg_age_sec is None
+    assert metrics.total_messages == 0
+
+
+def test_metrics_all_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE, db_session):
+    pgmq, queue_name_1 = pgmq_setup_teardown
+    queue_name_2 = f"test_queue_{uuid.uuid4().hex}"
+    pgmq.create_queue(queue_name_2)
+    pgmq.send_batch(queue_name_1, [MSG, MSG, MSG])
+    pgmq.send_batch(queue_name_2, [MSG, MSG])
+    metrics_all = pgmq.metrics_all()
+    queue_1 = [q for q in metrics_all if q.queue_name == queue_name_1][0]
+    queue_2 = [q for q in metrics_all if q.queue_name == queue_name_2][0]
+    assert queue_1.queue_length == 3
+    assert queue_2.queue_length == 2
+    assert queue_1.total_messages == 3
+    assert queue_2.total_messages == 2
