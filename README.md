@@ -3,7 +3,7 @@
 ![PyPI - Version](https://img.shields.io/pypi/v/pgmq-sqlalchemy)
 [![PyPI - License](https://img.shields.io/pypi/l/pgmq-sqlalchemy.svg)](https://github.com/pgmq-sqlalchemy/pgmq-sqlalchemy-python/blob/main/LICENSE)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pgmq-sqlalchemy.svg)](https://pypi.python.org/pypi/pgmq-sqlalchemy)
-[![codecov](https://codecov.io/gh/pgmq-sqlalchemy/pgmq-sqlalchemy-python/branch/master/graph/badge.svg)](https://codecov.io/gh/pgmq-sqlalchemy/pgmq-sqlalchemy-python)
+[![codecov](https://codecov.io/gh/jason810496/pgmq-sqlalchemy/graph/badge.svg?token=C5ZVZCW7TE)](https://codecov.io/gh/jason810496/pgmq-sqlalchemy)
 [![Docs](https://readthedocs.org/projects/pgmq-sqlalchemy-python/badge/?version=latest)](http://pgmq-sqlalchemy-python.readthedocs.io/en/latest/?badge=latest)
 
 # pgmq-sqlalchemy
