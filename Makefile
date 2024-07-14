@@ -40,7 +40,7 @@ doc-build: ## Build the documentation
 doc-serve: ## Serve the documentation
 	cd doc && poetry run sphinx-autobuild -nW . _build
 
-.PHONY: test-local test-docker clear-db start-db
+.PHONY: install test-local test-docker test-docker-rebuild clear-db start-db exec-db doc-build doc-serve
 
 # generate help from comments
 .PHONY: help

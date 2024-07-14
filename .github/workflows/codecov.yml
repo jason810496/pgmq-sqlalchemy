@@ -35,9 +35,10 @@ jobs:
         - name: Start PostgreSQL
           run: |
             cp pgmq_postgres.template.env pgmq_postgres.env
+            cp pgmq_tests.template.env pgmq_tests.env
             make start-db
         - name: Run tests and collect coverage
-          run: poetry run pytest tests --cov=pgmq_sqlalchemy.queue --cov-report=xml
+          run: poetry run pytest tests --cov=pgmq_sqlalchemy.queue --cov-report=xml -n auto tests
         - name: Upload coverage reports to Codecov with GitHub Action
           uses: codecov/codecov-action@v4.2.0
           env:
