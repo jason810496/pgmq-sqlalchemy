@@ -22,5 +22,6 @@ Table of Contents
 
     self
     installation
+    getting-started
     usage
     development
