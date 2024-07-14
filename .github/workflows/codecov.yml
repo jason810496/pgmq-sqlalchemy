@@ -10,6 +10,7 @@ on:
 
 jobs:
   build:
+    
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -17,20 +18,21 @@ jobs:
 
     name: Test pgmq-sqlalchemy
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-    - uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        pip install poetry
-        poetry install
-    - name: Start PostgreSQL
-      run: make start-db
-    - name: Run tests and collect coverage
-      run: poetry run pytest tests --cov=pgmq_sqlalchemy.queue --cov-report=xml
-    - name: Upload coverage reports to Codecov with GitHub Action
-      uses: codecov/codecov-action@v4.2.0
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        - uses: actions/checkout@v4
+        - name: Set up Python ${{ matrix.python-version }}
+          uses: actions/setup-python@v5
+          with:
+            python-version: ${{ matrix.python-version }}
+        # Install dependencies
+        - name: Install dependencies
+          run: |
+            pip install poetry
+            poetry install
+        - name: Start PostgreSQL
+          run: make start-db
+        - name: Run tests and collect coverage
+          run: poetry run pytest tests --cov=pgmq_sqlalchemy.queue --cov-report=xml
+        - name: Upload coverage reports to Codecov with GitHub Action
+          uses: codecov/codecov-action@v4.2.0
+          env:
+            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
