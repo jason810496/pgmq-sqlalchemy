@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.12"]
 
     name: Test pgmq-sqlalchemy
     steps:
@@ -27,7 +27,11 @@ jobs:
         - name: Install dependencies
           run: |
             pip install poetry
-            poetry install
+        - name: Set poetry python version
+          run: |
+            poetry env use python${{ matrix.python-version }}
+        - name: Install dependencies
+          run: poetry install
         - name: Start PostgreSQL
           run: make start-db
         - name: Run tests and collect coverage
