@@ -29,6 +29,7 @@ clear-db: ## Clear the database
 
 start-db: ## Start the database
 	docker compose up -d pgmq_postgres
+	while ! docker compose exec pgmq_postgres pg_isready; do sleep 1; done
 
 exec-db: ## Enter the database container
 	docker compose exec pgmq_postgres psql -U postgres -d postgres
