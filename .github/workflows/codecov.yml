@@ -33,7 +33,9 @@ jobs:
         - name: Install dependencies
           run: poetry install
         - name: Start PostgreSQL
-          run: make start-db
+          run: |
+            cp pgmq_postgres.template.env pgmq_postgres.env
+            make start-db
         - name: Run tests and collect coverage
           run: poetry run pytest tests --cov=pgmq_sqlalchemy.queue --cov-report=xml
         - name: Upload coverage reports to Codecov with GitHub Action
