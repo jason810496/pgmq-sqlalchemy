@@ -33,6 +33,12 @@ start-db: ## Start the database
 exec-db: ## Enter the database container
 	docker compose exec pgmq_postgres psql -U postgres -d postgres
 
+doc-build: ## Build the documentation
+	cd doc && poetry run sphinx-build -nW . _build
+
+doc-serve: ## Serve the documentation
+	cd doc && poetry run sphinx-autobuild -nW . _build
+
 .PHONY: test-local test-docker clear-db start-db
 
 # generate help from comments

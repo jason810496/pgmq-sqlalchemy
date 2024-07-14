@@ -167,3 +167,5 @@ cython_debug/
 stateful_volumes/*
 # filelock temp files
 pgmq.meta.lock.txt
+# for doc build
+doc/_build/
