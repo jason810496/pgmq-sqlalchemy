@@ -1,8 +1,7 @@
 from .queue import PGMQueue
-from .schema import Message, QueueMetrics
+from . import schema
 
 __all__ = [
     PGMQueue,
-    Message,
-    QueueMetrics,
+    schema,
 ]
