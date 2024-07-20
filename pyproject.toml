@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pgmq-sqlalchemy"
 version = "0.1.0"
-description = "Python client using sqlalchemy ORM for the PGMQ Postgres extension."
+description = "PGMQ Postgres extension Python client using sqlalchemy ORM, supporting async and sync engines."
 authors = ["jason810496 <810496@email.wlsh.tyc.edu.tw>"]
 license = "MIT"
 readme = "README.md"
@@ -9,7 +9,7 @@ readme = "README.md"
 [tool.poetry.urls]
 "Homepage" = "https://github.com/jason810496/pgmq-sqlalchemy"
 "Repository" = "https://github.com/jason810496/pgmq-sqlalchemy"
-"Documentation" = "https://github.com/tembo-io/pgmq/tree/main/tembo-pgmq-python"
+"Documentation" = "https://pgmq-sqlalchemy.readthedocs.io/en/latest/"
 
 [tool.poetry.extras]
 asyncpg = ["asyncpg"]
