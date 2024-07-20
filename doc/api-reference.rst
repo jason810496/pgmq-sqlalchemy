@@ -9,23 +9,24 @@ PGMQueue
 .. autoclass:: pgmq_sqlalchemy.PGMQueue
     :members:
     :inherited-members:
+    :member-order: bysource
     :special-members: __init__
     :noindex:
 
-Message
--------
+schema.Message
+--------------
 
-.. autoclass:: pgmq_sqlalchemy.Message
+.. autoclass:: pgmq_sqlalchemy.schema.Message
     :members:
     :undoc-members:
     :inherited-members:
     :exclude-members: __init__
     :noindex:
 
-QueueMetrics
-------------
+schema.QueueMetrics
+-------------------
 
-.. autoclass:: pgmq_sqlalchemy.QueueMetrics
+.. autoclass:: pgmq_sqlalchemy.schema.QueueMetrics
     :members:
     :undoc-members:
     :inherited-members:

@@ -34,6 +34,53 @@ class PGMQueue:
         engine: ENGINE_TYPE | None = None,
         session_maker: sessionmaker | None = None,
     ) -> None:
+        """
+
+        | There are **3** ways to initialize ``PGMQueue`` class:
+        | 1. Initialize with a ``dsn``:
+
+        .. code-block:: python
+
+            from pgmq_sqlalchemy import PGMQueue
+
+            pgmq_client = PGMQueue(dsn='postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
+            # or async dsn
+            async_pgmq_client = PGMQueue(dsn='postgresql+asyncpg://postgres:postgres@localhost:5432/postgres')
+
+        | 2. Initialize with an ``engine`` or ``async_engine``:
+
+        .. code-block:: python
+
+            from pgmq_sqlalchemy import PGMQueue
+            from sqlalchemy import create_engine
+            from sqlalchemy.ext.asyncio import create_async_engine
+
+            engine = create_engine('postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
+            pgmq_client = PGMQueue(engine=engine)
+            # or async engine
+            async_engine = create_async_engine('postgresql+asyncpg://postgres:postgres@localhost:5432/postgres')
+            async_pgmq_client = PGMQueue(engine=async_engine)
+
+        | 3. Initialize with a ``session_maker``:
+
+        .. code-block:: python
+
+            from pgmq_sqlalchemy import PGMQueue
+            from sqlalchemy.orm import sessionmaker
+            from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+
+            engine = create_engine('postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
+            session_maker = sessionmaker(bind=engine)
+            pgmq_client = PGMQueue(session_maker=session_maker)
+            # or async session_maker
+            async_engine = create_async_engine('postgresql+asyncpg://postgres:postgres@localhost:5432/post
+            async_session_maker = sessionmaker(bind=async_engine, class_=AsyncSession)
+            async_pgmq_client = PGMQueue(session_maker=async_session_maker)
+
+        .. note::
+            | ``PGMQueue`` will **auto create** the ``pgmq`` extension ( and ``pg_partman`` extension if the method is related with **partitioned_queue** ) if it does not exist in the Postgres.
+            | But you must make sure that the ``pgmq`` extension ( or ``pg_partman`` extension )already **installed** in the Postgres.
+        """
         if not dsn and not engine and not session_maker:
             raise ValueError("Must provide either dsn, engine, or session_maker")
         # initialize the engine and session_maker
@@ -104,7 +151,7 @@ class PGMQueue:
         return self._check_pg_partman_ext_sync()
 
     def _create_queue_sync(self, queue: str, unlogged: bool = False) -> None:
-        """Create a new queue."""
+        """ """
         with self.session_maker() as session:
             if unlogged:
                 session.execute(
