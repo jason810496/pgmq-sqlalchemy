@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pgmq-sqlalchemy"
-version = "0.1.0"
+version = "0.1.1"
 description = "More flexible PGMQ Postgres extension Python client that using sqlalchemy ORM, supporting both async and sync engines, sessionmakers or built from dsn." 
 authors = ["jason810496 <810496@email.wlsh.tyc.edu.tw>"]
 license = "MIT"
