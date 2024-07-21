@@ -1568,13 +1568,13 @@ doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linke
 test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", "jaraco.test", "more-itertools", "pytest (>=6,!=8.1.*)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-ignore-flaky", "pytest-mypy", "pytest-ruff (>=0.2.1)"]
 
 [extras]
-asyncpg = []
-pg8000 = []
-psycopg = []
-psycopg2-binary = []
-psycopg2cffi = []
+asyncpg = ["asyncpg", "greenlet"]
+pg8000 = ["pg8000"]
+psycopg = ["psycopg"]
+psycopg2-binary = ["psycopg2-binary"]
+psycopg2cffi = ["psycopg2cffi"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "39d3494916f07c63acdfc5a10d436ac0c4de2a706cc14e1ca096ac163c4e19ef"
+content-hash = "8d8136531140493b0acf2b97120e92289639ac5543158a3e575cfc357f2cdb7a"
