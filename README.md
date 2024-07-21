@@ -1,10 +1,11 @@
 [![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![PyPI - Version](https://img.shields.io/pypi/v/pgmq-sqlalchemy)
-[![PyPI - License](https://img.shields.io/pypi/l/pgmq-sqlalchemy.svg)](https://github.com/pgmq-sqlalchemy/pgmq-sqlalchemy-python/blob/main/LICENSE)
+[![PyPI - License](https://img.shields.io/pypi/l/pgmq-sqlalchemy.svg)](https://github.com/jason810496/pgmq-sqlalchemy/blob/main/LICENSE)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pgmq-sqlalchemy.svg)](https://pypi.python.org/pypi/pgmq-sqlalchemy)
 [![codecov](https://codecov.io/gh/jason810496/pgmq-sqlalchemy/graph/badge.svg?token=C5ZVZCW7TE)](https://codecov.io/gh/jason810496/pgmq-sqlalchemy)
-[![Docs](https://readthedocs.org/projects/pgmq-sqlalchemy-python/badge/?version=latest)](http://pgmq-sqlalchemy-python.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/pgmq-sqlalchemy/badge/?version=latest)](https://pgmq-sqlalchemy.readthedocs.io/en/latest/?badge=latest)
+
 
 # pgmq-sqlalchemy
 
@@ -41,9 +42,9 @@ pip install pgmq-sqlalchemy
 Install with additional DBAPIs packages:
 
 ```bash
-pip install pgmq-sqlalchemy[psycopg2]
-pip install pgmq-sqlalchemy[asyncpg]
-# pip install pgmq-sqlalchemy[postgres-python-driver]
+pip install "pgmq-sqlalchemy[asyncpg]"
+pip install "pgmq-sqlalchemy[psycopg2-binary]"
+# pip install "pgmq-sqlalchemy[postgres-python-driver]"
 ```
 
 ## Getting Started
@@ -60,7 +61,7 @@ docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io
 ### Usage
 
 > [!NOTE]  
-> Check [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) for more examples and detailed usage.
+> Check [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy.readthedocs.io/en/latest/) for more examples and detailed usage.
 
 
 For `dispatcher.py`:
@@ -114,7 +115,7 @@ print(metrics.total_messages)
 ## Issue/ Contributing / Development 
 
 Welcome to open an issue or pull request ! <br>
-See [`Development` on Online Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
+See [`Development` on Online Document](https://pgmq-sqlalchemy.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
 
 ## TODO 
 
