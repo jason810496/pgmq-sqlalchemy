@@ -263,9 +263,6 @@ class PGMQueue:
                     | Currently, only support for partitioning by **msg_id**.
                     | Will add **time-based partitioning** in the future ``pgmq-sqlalchemy`` release.
 
-        Todo:
-            * Add time-based partitioning with validation.
-
         .. important::
             | You must make sure that the ``pg_partman`` extension already **installed** in the Postgres.
             | ``pgmq-sqlalchemy`` will **auto create** the ``pg_partman`` extension if it does not exist in the Postgres.
@@ -337,11 +334,17 @@ class PGMQueue:
     def drop_queue(self, queue: str, partitioned: bool = False) -> bool:
         """Drop a queue.
 
+        .. _drop_queue_anchor:
+
         .. code-block:: python
 
             pgmq_client.drop_queue('my_queue')
             # for partitioned queue
             pgmq_client.drop_queue('my_partitioned_queue', partitioned=True)
+
+        .. warning::
+            | All messages and queue itself will be deleted. (``pgmq.q_<queue_name>`` table)
+            | **Archived tables** (``pgmq.a_<queue_name>`` table **will be dropped as well. )**
         """
         # check if the pg_partman extension exists before dropping a partitioned queue at runtime
         if partitioned:
@@ -946,7 +949,23 @@ class PGMQueue:
         return row[0]
 
     def archive(self, queue_name: str, msg_id: int) -> bool:
-        """Archive a message from a queue."""
+        """
+        Archive a message from a queue.
+
+
+        * Message will be deleted from the queue and moved to the archive table.
+            * Will be deleted from ``pgmq.q_<queue_name>`` and be inserted into the ``pgmq.a_<queue_name>`` table.
+        * raises an error if the ``queue_name`` does not exist.
+        * returns ``True`` if the message is archived successfully.
+
+        .. code-block:: python
+
+            msg_id = pgmq_client.send('my_queue', {'key': 'value'})
+            assert pgmq_client.archive('my_queue', msg_id)
+            # since the message is archived, queue will be empty
+            assert pgmq_client.read('my_queue') is None
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(self._archive_async(queue_name, msg_id))
         return self._archive_sync(queue_name, msg_id)
@@ -974,7 +993,19 @@ class PGMQueue:
         return [row[0] for row in rows]
 
     def archive_batch(self, queue_name: str, msg_ids: List[int]) -> List[int]:
-        """Archive multiple messages from a queue."""
+        """
+        Archive multiple messages from a queue.
+
+        * Messages will be deleted from the queue and moved to the archive table.
+        * Returns a list of ``msg_ids`` that are successfully archived.
+
+        .. code-block:: python
+
+            msg_ids = pgmq_client.send_batch('my_queue', [{'key': 'value'}, {'key': 'value'}])
+            assert pgmq_client.archive_batch('my_queue', msg_ids) == msg_ids
+            assert pgmq_client.read('my_queue') is None
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(
                 self._archive_batch_async(queue_name, msg_ids)
@@ -1004,7 +1035,17 @@ class PGMQueue:
         return row[0]
 
     def purge(self, queue_name: str) -> int:
-        """Purge a queue,return deleted_count."""
+        """
+        * Delete all messages from a queue, return the number of messages deleted.
+        * Archive tables will **not** be affected.
+
+        .. code-block:: python
+
+            msg_ids = pgmq_client.send_batch('my_queue', [{'key': 'value'}, {'key': 'value'}])
+            assert pgmq_client.purge('my_queue') == 2
+            assert pgmq_client.read('my_queue') is None
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(self._purge_async(queue_name))
         return self._purge_sync(queue_name)
@@ -1047,7 +1088,27 @@ class PGMQueue:
         )
 
     def metrics(self, queue_name: str) -> Optional[QueueMetrics]:
-        """Get queue metrics."""
+        """
+        Get metrics for a queue.
+
+        .. _schema_message_class: `schema.Message`_
+        .. |schema_message_class| replace:: :py:class:`.~pgmq_sqlalchemy.schema.QueueMetrics`
+
+        Returns:
+            |schema_message_class|_
+
+        Usage:
+
+        .. code-block:: python
+
+            from pgmq_sqlalchemy.schema import QueueMetrics
+
+            metrics:QueueMetrics = pgmq_client.metrics('my_queue')
+            print(metrics.queue_name)
+            print(metrics.queue_length)
+            print(metrics.queue_length)
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(self._metrics_async(queue_name))
         return self._metrics_sync(queue_name)
@@ -1089,7 +1150,40 @@ class PGMQueue:
         ]
 
     def metrics_all(self) -> Optional[List[QueueMetrics]]:
-        """Get metrics for all queues."""
+        """
+
+        .. _read_committed_isolation_level: https://www.postgresql.org/docs/current/transaction-iso.html#XACT-READ-COMMITTED
+        .. |read_committed_isolation_level| replace:: **READ COMMITTED**
+
+        .. _drop_queue_method: ref:`pgmq_sqlalchemy.PGMQueue.drop_queue`
+        .. |drop_queue_method| replace:: :py:class:`~pgmq_sqlalchemy.PGMQueue.drop_queue`
+
+        Get metrics for all queues.
+
+        Returns:
+            List of |schema_message_class|_ objects.
+
+        :py:class:`~pgmq_sqlalchemy.schema.QueueMetrics`
+
+        Usage:
+
+        .. code-block:: python
+
+            from pgmq_sqlalchemy.schema import QueueMetrics
+
+            metrics:List[QueueMetrics] = pgmq_client.metrics_all()
+            for m in metrics:
+                print(m.queue_name)
+                print(m.queue_length)
+                print(m.queue_length)
+
+        .. warning::
+            | You should use a **distributed lock** to avoid **race conditions** when calling :py:meth:`~pgmq_sqlalchemy.metrics_call` in **concurrent** |drop_queue_method|_ **scenarios**.
+            |
+            | Since the default PostgreSQL isolation level is |read_committed_isolation_level|_, the queue metrics to be fetched **may not exist** if there are **concurrent** |drop_queue_method|_ **operations**.
+
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(self._metrics_all_async())
         return self._metrics_all_sync()
