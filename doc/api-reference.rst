@@ -14,22 +14,18 @@ API Reference
     :member-order: bysource
     :special-members: __init__
 
-schema.Message
---------------
 
 .. autoclass:: pgmq_sqlalchemy.schema.Message
     :members:
     :undoc-members:
     :inherited-members:
     :exclude-members: __init__
-    :noindex:
+    
 
-schema.QueueMetrics
--------------------
 
 .. autoclass:: pgmq_sqlalchemy.schema.QueueMetrics
     :members:
     :undoc-members:
     :inherited-members:
     :exclude-members: __init__
-    :noindex:
+    

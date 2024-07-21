@@ -6,7 +6,7 @@ from typing import Optional
 @dataclass
 class Message:
     """
-    .. _schema_message_class: `schema.Message`_
+    .. _schema_message_class: #pgmq_sqlalchemy.schema.Message
     .. |schema_message_class| replace:: :py:class:`.~pgmq_sqlalchemy.schema.Message`
     """
 
@@ -20,7 +20,7 @@ class Message:
 @dataclass
 class QueueMetrics:
     """
-    .. _schema_queue_metrics_class: `schema.QueueMetrics`_
+    .. _schema_queue_metrics_class: #pgmq_sqlalchemy.schema.QueueMetrics
     .. |schema_queue_metrics_class| replace:: :py:class:`.~pgmq_sqlalchemy.schema.QueueMetrics`
     """
 
