@@ -42,9 +42,9 @@ pip install pgmq-sqlalchemy
 Install with additional DBAPIs packages:
 
 ```bash
-pip install pgmq-sqlalchemy[psycopg2]
-pip install pgmq-sqlalchemy[asyncpg]
-# pip install pgmq-sqlalchemy[postgres-python-driver]
+pip install "pgmq-sqlalchemy[asyncpg]"
+pip install "pgmq-sqlalchemy[psycopg2-binary]"
+# pip install "pgmq-sqlalchemy[postgres-python-driver]"
 ```
 
 ## Getting Started
@@ -61,7 +61,7 @@ docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io
 ### Usage
 
 > [!NOTE]  
-> Check [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) for more examples and detailed usage.
+> Check [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy.readthedocs.io/en/latest/) for more examples and detailed usage.
 
 
 For `dispatcher.py`:
@@ -115,7 +115,7 @@ print(metrics.total_messages)
 ## Issue/ Contributing / Development 
 
 Welcome to open an issue or pull request ! <br>
-See [`Development` on Online Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
+See [`Development` on Online Document](https://pgmq-sqlalchemy.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
 
 ## TODO 
 
