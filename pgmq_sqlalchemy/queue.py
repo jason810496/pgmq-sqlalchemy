@@ -522,6 +522,9 @@ class PGMQueue:
         .. _for_update_skip_locked: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
         .. |for_update_skip_locked| replace:: **FOR UPDATE SKIP LOCKED**
 
+        .. _read_method: ref:`pgmq_sqlalchemy.PGMQueue.read`
+        .. |read_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.read`
+
         Read a message from the queue.
 
         Returns:
@@ -749,6 +752,11 @@ class PGMQueue:
         poll_interval_ms: int = 100,
     ) -> Optional[List[Message]]:
         """
+
+        .. _read_with_poll_method: ref:`pgmq_sqlalchemy.PGMQueue.read_with_poll`
+        .. |read_with_poll_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.read_with_poll`
+
+
         | Read messages from a queue with long-polling.
         |
         | When the queue is empty, the function block at most ``max_poll_seconds`` seconds.
