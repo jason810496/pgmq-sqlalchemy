@@ -7,6 +7,7 @@ import os
 import sys
 
 # path setup
+sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("../pgmq_sqlalchemy"))
 
 extensions = [

@@ -1,5 +1,22 @@
 .. _index:
 
+
+.. image:: https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json
+    :target: https://python-poetry.org/
+    :alt: Poetry
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+    :alt: Ruff
+.. image:: https://img.shields.io/pypi/v/pgmq-sqlalchemy
+    :target: https://pypi.org/project/pgmq-sqlalchemy/
+    :alt: PyPI - Version
+.. image:: https://img.shields.io/pypi/l/pgmq-sqlalchemy.svg
+    :target: https://pypi.org/project/pgmq-sqlalchemy/
+    :alt: PyPI - License
+.. image:: https://codecov.io/gh/jason810496/pgmq-sqlalchemy/graph/badge.svg?token=C5ZVZCW7TE
+    :target: https://codecov.io/gh/jason810496/pgmq-sqlalchemy
+    :alt: Codecov
+
 pgmq-sqlalchemy
 ===============
 
@@ -9,6 +26,7 @@ Features
 --------
 
 * Supports **async** and **sync** ``engines``, ``sessionmakers``, or directly constructed from ``dsn``.
+* **Automatically** creates ``pgmq`` extension on the database if not exists.
 * Supports all Postgres DBAPIs supported by ``SQLAlchemy``.
     * Examples: ``psycopg``, ``psycopg2``, ``asyncpg``
     * See `SQLAlchemy Postgresql Dialects <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html>`_
@@ -23,5 +41,6 @@ Table of Contents
     self
     installation
     getting-started
-    usage
+    api-reference
     development
+    release
