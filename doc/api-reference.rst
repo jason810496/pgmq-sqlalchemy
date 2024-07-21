@@ -3,6 +3,10 @@
 API Reference
 =============
 
+.. tip::
+    | For a more detailed explanation or implementation of each `PGMQ function`,
+    | see `PGMQ: SQL functions.md <https://github.com/tembo-io/pgmq/blob/main/docs/api/sql/functions.md>`_.
+
 PGMQueue
 --------
 
