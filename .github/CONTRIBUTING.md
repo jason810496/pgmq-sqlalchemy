@@ -1,6 +1,6 @@
 # Contributing
 
-Welcome to contribute to `pgmq-sqlalchemy` ! 
+Welcome to contribute to `pgmq-sqlalchemy` !  <br>
 This document will guide you through the process of contributing to the project.
 
 ## How to Contribute
