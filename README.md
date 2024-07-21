@@ -25,6 +25,7 @@ More flexible [PGMQ Postgres extension](https://github.com/tembo-io/pgmq) Python
 ## Features
 
 - Supports **async** and **sync** `engines` and `sessionmakers`, or built from `dsn`.
+- **Automatically** creates `pgmq` (or `pg_partman`) extension on the database if not exists.
 - Supports **all postgres DBAPIs supported by sqlalchemy**.
     > e.g. `psycopg`, `psycopg2`, `asyncpg` .. <br>
     > See [SQLAlchemy Postgresql Dialects](https://docs.sqlalhttps://docs.sqlalchemy.org/en/20/dialects/postgresql.html)
@@ -42,6 +43,7 @@ Install with additional DBAPIs packages:
 ```bash
 pip install pgmq-sqlalchemy[psycopg2]
 pip install pgmq-sqlalchemy[asyncpg]
+# pip install pgmq-sqlalchemy[postgres-python-driver]
 ```
 
 ## Getting Started
@@ -61,33 +63,58 @@ docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io
 > Check [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) for more examples and detailed usage.
 
 
-`dispatcher.py`:
+For `dispatcher.py`:
 ```python
+from typing import List
 from pgmq_sqlalchemy import PGMQueue
 
-pgmq = PGMQueue(dsn='postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
+postgres_dsn = 'postgresql://postgres:postgres@localhost:5432/postgres'
+
+pgmq = PGMQueue(dsn=postgres_dsn)
 pgmq.create_queue('my_queue')
 
-pgmq.send('my_queue', {'key': 'value'})
+msg = {'key': 'value', 'key2': 'value2'}
+msg_id:int = pgmq.send('my_queue', msg)
+
+# could also send a list of messages
+msg_ids:List[int] = pgmq.send_batch('my_queue', [msg, msg])
 ```
 
-`consumer.py`:
+For `consumer.py`:
 ```python
 from pgmq_sqlalchemy import PGMQueue
 from pgmq_sqlalchemy.schema import Message
 
-pgmq = PGMQueue(dsn='postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
+postgres_dsn = 'postgresql://postgres:postgres@localhost:5432/postgres'
+
+pgmq = PGMQueue(dsn=postgres_dsn)
+
+# read a single message
 msg:Message = pgmq.read('my_queue')
 
-if msg:
-    print(msg.msg_id)
-    print(msg.message)
+# read a batch of messages
+msgs:List[Message] = pgmq.read_batch('my_queue', 10)
+```
+
+For `monitor.py`:
+```python
+from pgmq_sqlalchemy import PGMQueue
+from pgmq_sqlalchemy.schema import QueueMetrics
+
+postgres_dsn = 'postgresql://postgres:postgres@localhost:5432/postgres'
+
+pgmq = PGMQueue(dsn=postgres_dsn)
+
+# get queue metrics
+metrics:QueueMetrics = pgmq.metrics('my_queue')
+print(metrics.queue_length)
+print(metrics.total_messages)
 ```
 
 ## Issue/ Contributing / Development 
 
 Welcome to open an issue or pull request ! <br>
-See [`Development` on Online Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/)or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
+See [`Development` on Online Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
 
 ## TODO 
 
