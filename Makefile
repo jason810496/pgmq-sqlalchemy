@@ -4,6 +4,9 @@ install: ## Install dependencies and `ruff` pre-commit hooks
 	pre-commit install
 	poetry install --with dev
 
+build: ## Build the package
+	poetry build
+
 test-local: ## Run tests locally
 	poetry run pytest tests --cov=pgmq_sqlalchemy.queue
 
@@ -37,8 +40,11 @@ exec-db: ## Enter the database container
 doc-build: ## Build the documentation
 	cd doc && poetry run sphinx-build -nW . _build
 
-doc-serve: ## Serve the documentation
+doc-serve: doc-clean ## Serve the documentation
 	cd doc && poetry run sphinx-autobuild -nW . _build
+
+doc-clean: ## Clean the documentation
+	cd doc && rm -r _build
 
 .PHONY: install test-local test-docker test-docker-rebuild clear-db start-db exec-db doc-build doc-serve
 

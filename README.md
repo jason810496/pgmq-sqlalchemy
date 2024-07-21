@@ -8,16 +8,117 @@
 
 # pgmq-sqlalchemy
 
-Python client using **sqlalchemy ORM** for the PGMQ Postgres extension.
+More flexible [PGMQ Postgres extension](https://github.com/tembo-io/pgmq) Python client that using **sqlalchemy ORM**, supporting both **async** and **sync** `engines`, `sessionmakers` or built from `dsn`.
 
-支援 **SQLAlchemy ORM** 的 Python 客戶端 <br>
-用於 [PGMQ Postgres 插件](https://github.com/tembo-io/pgmq) 。
+## Table of Contents
+
+* [pgmq-sqlalchemy](#pgmq-sqlalchemy)
+   * [Features](#features)
+   * [Installation](#installation)
+   * [Getting Started](#getting-started)
+      * [Postgres Setup](#postgres-setup)
+      * [Usage](#usage)
+   * [Issue/ Contributing / Development](#issue-contributing--development)
+   * [TODO](#todo)
+
 
 ## Features
 
-- 支援 **async** 和 **sync** `engines`、`sessionmakers`，或由 `dsn` 構建。
-- 支援所有 sqlalchemy 支持的 postgres DBAPIs。
-    > 例如：`psycopg`, `psycopg2`, `asyncpg`
-    > 可見 [SQLAlchemy Postgresql Dialects](https://docs.sqlalhttps://docs.sqlalchemy.org/en/20/dialects/postgresql.html)
+- Supports **async** and **sync** `engines` and `sessionmakers`, or built from `dsn`.
+- **Automatically** creates `pgmq` (or `pg_partman`) extension on the database if not exists.
+- Supports **all postgres DBAPIs supported by sqlalchemy**.
+    > e.g. `psycopg`, `psycopg2`, `asyncpg` .. <br>
+    > See [SQLAlchemy Postgresql Dialects](https://docs.sqlalhttps://docs.sqlalchemy.org/en/20/dialects/postgresql.html)
+
+## Installation
+
+Install with pip:
+
+```bash
+pip install pgmq-sqlalchemy
+```
+
+Install with additional DBAPIs packages:
+
+```bash
+pip install pgmq-sqlalchemy[psycopg2]
+pip install pgmq-sqlalchemy[asyncpg]
+# pip install pgmq-sqlalchemy[postgres-python-driver]
+```
+
+## Getting Started
+
+### Postgres Setup
+
+Prerequisites: **Postgres** with **PGMQ** extension installed. <br>
+For quick setup: 
+```bash
+docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io/tembo/pg16-pgmq:latest
+```
+> For more information, see [PGMQ](https://github.com/tembo-io/pgmq)
+
+### Usage
+
+> [!NOTE]  
+> Check [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) for more examples and detailed usage.
 
 
+For `dispatcher.py`:
+```python
+from typing import List
+from pgmq_sqlalchemy import PGMQueue
+
+postgres_dsn = 'postgresql://postgres:postgres@localhost:5432/postgres'
+
+pgmq = PGMQueue(dsn=postgres_dsn)
+pgmq.create_queue('my_queue')
+
+msg = {'key': 'value', 'key2': 'value2'}
+msg_id:int = pgmq.send('my_queue', msg)
+
+# could also send a list of messages
+msg_ids:List[int] = pgmq.send_batch('my_queue', [msg, msg])
+```
+
+For `consumer.py`:
+```python
+from pgmq_sqlalchemy import PGMQueue
+from pgmq_sqlalchemy.schema import Message
+
+postgres_dsn = 'postgresql://postgres:postgres@localhost:5432/postgres'
+
+pgmq = PGMQueue(dsn=postgres_dsn)
+
+# read a single message
+msg:Message = pgmq.read('my_queue')
+
+# read a batch of messages
+msgs:List[Message] = pgmq.read_batch('my_queue', 10)
+```
+
+For `monitor.py`:
+```python
+from pgmq_sqlalchemy import PGMQueue
+from pgmq_sqlalchemy.schema import QueueMetrics
+
+postgres_dsn = 'postgresql://postgres:postgres@localhost:5432/postgres'
+
+pgmq = PGMQueue(dsn=postgres_dsn)
+
+# get queue metrics
+metrics:QueueMetrics = pgmq.metrics('my_queue')
+print(metrics.queue_length)
+print(metrics.total_messages)
+```
+
+## Issue/ Contributing / Development 
+
+Welcome to open an issue or pull request ! <br>
+See [`Development` on Online Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
+
+## TODO 
+
+- [ ] Add **time-based** partition option and validation to `create_partitioned_queue` method.
+- [ ] Read(single/batch) Archive Table ( `read_archive` method )
+- [ ] Detach Archive Table ( `detach_archive` method )
+- [ ] Add `set_vt` utils method.
