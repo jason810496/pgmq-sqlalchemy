@@ -17,8 +17,6 @@ from ._utils import (
 
 
 class PGMQueue:
-    """Base class for interacting with a queue"""
-
     engine: ENGINE_TYPE = None
     session_maker: sessionmaker = None
     delay: int = 0
@@ -637,7 +635,19 @@ class PGMQueue:
         batch_size: int = 1,
         vt: Optional[int] = None,
     ) -> Optional[List[Message]]:
-        """Read a batch of messages from the queue."""
+        """
+        | Read a batch of messages from the queue.
+        | Usage:
+
+        .. code-block:: python
+
+            from pgmq_sqlalchemy.schema import Message
+
+            msgs:List[Message] = pgmq_client.read_batch('my_queue', batch_size=10)
+            # with vt
+            msgs:List[Message] = pgmq_client.read_batch('my_queue', batch_size=10, vt=10)
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(
                 self._read_batch_async(queue_name, batch_size, vt)
@@ -726,7 +736,47 @@ class PGMQueue:
         max_poll_seconds: int = 5,
         poll_interval_ms: int = 100,
     ) -> Optional[List[Message]]:
-        """Read messages from a queue with polling."""
+        """
+        | Read messages from a queue with long-polling.
+        |
+        | When the queue is empty, the function block at most ``max_poll_seconds`` seconds.
+        | During the polling, the function will check the queue every ``poll_interval_ms`` milliseconds, until the queue has ``qty`` messages.
+
+        Args:
+            queue_name (str): The name of the queue.
+            vt (Optional[int]): The visibility timeout in seconds.
+            qty (int): The number of messages to read.
+            max_poll_seconds (int): The maximum number of seconds to poll.
+            poll_interval_ms (int): The interval in milliseconds to poll.
+
+        Usage:
+
+        .. code-block:: python
+
+            msg_id = pgmq_client.send('my_queue', {'key': 'value'}, delay=6)
+
+            # the following code will block for 5 seconds
+            msgs = pgmq_client.read_with_poll('my_queue', qty=1, max_poll_seconds=5, poll_interval_ms=100)
+            assert msgs is None
+
+            # try read_with_poll again
+            # the following code will only block for 1 second
+            msgs = pgmq_client.read_with_poll('my_queue', qty=1, max_poll_seconds=5, poll_interval_ms=100)
+            assert msgs is not None
+
+        Another example:
+
+        .. code-block:: python
+
+            msg = {'key': 'value'}
+            msg_ids = pgmq_client.send_batch('my_queue', [msg, msg, msg, msg], delay=3)
+
+            # the following code will block for 3 seconds
+            msgs = pgmq_client.read_with_poll('my_queue', qty=3, max_poll_seconds=5, poll_interval_ms=100)
+            assert len(msgs) == 3 # will read at most 3 messages (qty=3)
+
+        """
+
         if self.is_async:
             return self.loop.run_until_complete(
                 self._read_with_poll_async(
@@ -766,7 +816,16 @@ class PGMQueue:
         )
 
     def pop(self, queue_name: str) -> Optional[Message]:
-        """Pop a message from the queue."""
+        """
+        Reads a single message from a queue and deletes it upon read.
+
+        .. code-block:: python
+
+            msg = pgmq_client.pop('my_queue')
+            print(msg.msg_id)
+            print(msg.message)
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(self._pop_async(queue_name))
         return self._pop_sync(queue_name)
@@ -800,7 +859,20 @@ class PGMQueue:
         return row[0]
 
     def delete(self, queue_name: str, msg_id: int) -> bool:
-        """Delete a message from the queue."""
+        """
+        Delete a message from the queue.
+
+        * Raises an error if the ``queue_name`` does not exist.
+        * Returns ``True`` if the message is deleted successfully.
+        * If the message does not exist, returns ``False``.
+
+        .. code-block:: python
+
+            msg_id = pgmq_client.send('my_queue', {'key': 'value'})
+            assert pgmq_client.delete('my_queue', msg_id)
+            assert not pgmq_client.delete('my_queue', msg_id)
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(self._delete_async(queue_name, msg_id))
         return self._delete_sync(queue_name, msg_id)
@@ -834,7 +906,19 @@ class PGMQueue:
         return [row[0] for row in rows]
 
     def delete_batch(self, queue_name: str, msg_ids: List[int]) -> List[int]:
-        """Delete a batch of messages from the queue."""
+        """
+        Delete a batch of messages from the queue.
+
+        .. note::
+            | Instead of return `bool` like ``delete``,
+            | ``delete_batch`` will return a list of ``msg_ids`` that are successfully deleted.
+
+        .. code-block:: python
+
+            msg_ids = pgmq_client.send_batch('my_queue', [{'key': 'value'}, {'key': 'value'}])
+            assert pgmq_client.delete_batch('my_queue', msg_ids) == msg_ids
+
+        """
         if self.is_async:
             return self.loop.run_until_complete(
                 self._delete_batch_async(queue_name, msg_ids)
