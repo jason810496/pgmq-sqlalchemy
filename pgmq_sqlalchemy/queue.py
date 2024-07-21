@@ -28,9 +28,9 @@ class PGMQueue:
 
     def __init__(
         self,
-        dsn: str | None = None,
-        engine: ENGINE_TYPE | None = None,
-        session_maker: sessionmaker | None = None,
+        dsn: Optional[str] = None,
+        engine: Optional[ENGINE_TYPE] = None,
+        session_maker: Optional[sessionmaker] = None,
     ) -> None:
         """
 
