@@ -10,6 +10,18 @@
 
 More flexible [PGMQ Postgres extension](https://github.com/tembo-io/pgmq) Python client that using **sqlalchemy ORM**, supporting both **async** and **sync** `engines`, `sessionmakers` or built from `dsn`.
 
+## Table of Contents
+
+* [pgmq-sqlalchemy](#pgmq-sqlalchemy)
+   * [Features](#features)
+   * [Installation](#installation)
+   * [Getting Started](#getting-started)
+      * [Postgres Setup](#postgres-setup)
+      * [Usage](#usage)
+   * [Issue/ Contributing / Development](#issue-contributing--development)
+   * [TODO](#todo)
+
+
 ## Features
 
 - Supports **async** and **sync** `engines` and `sessionmakers`, or built from `dsn`.
@@ -32,7 +44,9 @@ pip install pgmq-sqlalchemy[psycopg2]
 pip install pgmq-sqlalchemy[asyncpg]
 ```
 
-## Usage
+## Getting Started
+
+### Postgres Setup
 
 Prerequisites: **Postgres** with **PGMQ** extension installed. <br>
 For quick setup: 
@@ -41,61 +55,11 @@ docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io
 ```
 > For more information, see [PGMQ](https://github.com/tembo-io/pgmq)
 
-<br>
+### Usage
 
-### Create a client
+> [!NOTE]  
+> Check [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/) for more examples and detailed usage.
 
-There are 3 ways to create a client:
-- 1. Directly from `dsn`:
-    ```python
-    from pgmq_sqlalchemy import PGMQueue
-
-    client = PGMQueue(dsn='postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
-    # or async dsn
-    async_client = PGMQueue(dsn='postgresql+asyncpg://postgres:postgres@localhost:5432/postgres')
-    ```
-- 2. From `engine` instance:
-    ```python
-    from sqlalchemy import create_engine
-    from pgmq_sqlalchemy import PGMQueue
-
-    engine = create_engine('postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
-    client = PGMQueue(engine=engine)
-    ```
-    also supports **async** `engine`:
-    ```python
-    from sqlalchemy.ext.asyncio import create_async_engine
-    from pgmq_sqlalchemy import PGMQueue
-
-    async_engine = create_async_engine('postgresql+asyncpg://postgres:postgres@localhost:5432/postgres')
-    client = PGMQueue(engine=async_engine)
-    ```
-- 3. From `sessionmaker` instance:
-    ```python
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from pgmq_sqlalchemy import PGMQueue
-
-    engine = create_engine('postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
-    sessionmaker = sessionmaker(bind=engine)
-
-    client = PGMQueue(sessionmaker=sessionmaker)
-    ```
-    also supports **async** `sessionmaker`:
-    ```python
-    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-    from sqlalchemy.orm import sessionmaker
-    from pgmq_sqlalchemy import PGMQueue
-
-    async_engine = create_async_engine('postgresql+asyncpg://postgres:postgres@localhost:5432/postgres')
-    async_sessionmaker = sessionmaker(bind=async_engine, class_=AsyncSession)
-
-    client = PGMQueue(sessionmaker=async_sessionmaker)
-    ```
-
-### Quick Start
-
-For all methods, see [pgmq-sqlalchemy Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/api/pgmq_sqlalchemy.html).
 
 `dispatcher.py`:
 ```python
@@ -109,7 +73,8 @@ pgmq.send('my_queue', {'key': 'value'})
 
 `consumer.py`:
 ```python
-from pgmq_sqlalchemy import PGMQueue, Message
+from pgmq_sqlalchemy import PGMQueue
+from pgmq_sqlalchemy.schema import Message
 
 pgmq = PGMQueue(dsn='postgresql+psycopg://postgres:postgres@localhost:5432/postgres')
 msg:Message = pgmq.read('my_queue')
@@ -121,5 +86,12 @@ if msg:
 
 ## Issue/ Contributing / Development 
 
-Welcome to open an issue or pull request. <br>
-See [`How to Contribute ?` on Online Document]()or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
+Welcome to open an issue or pull request ! <br>
+See [`Development` on Online Document](https://pgmq-sqlalchemy-python.readthedocs.io/en/latest/)or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
+
+## TODO 
+
+- [ ] Add **time-based** partition option and validation to `create_partitioned_queue` method.
+- [ ] Read(single/batch) Archive Table ( `read_archive` method )
+- [ ] Detach Archive Table ( `detach_archive` method )
+- [ ] Add `set_vt` utils method.

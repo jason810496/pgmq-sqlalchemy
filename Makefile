@@ -40,7 +40,7 @@ exec-db: ## Enter the database container
 doc-build: ## Build the documentation
 	cd doc && poetry run sphinx-build -nW . _build
 
-doc-serve: ## Serve the documentation
+doc-serve: doc-clean ## Serve the documentation
 	cd doc && poetry run sphinx-autobuild -nW . _build
 
 doc-clean: ## Clean the documentation
