@@ -242,6 +242,35 @@ def test_read_with_poll_with_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     assert duration > 1.9
 
 
+def test_set_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_id = pgmq.send(queue_name, msg)
+    msg_read = pgmq.set_vt(queue_name, msg_id, 2)
+    assert msg is not None
+    assert pgmq.read(queue_name) is None
+    time.sleep(1.5)
+    assert pgmq.read(queue_name) is None
+    time.sleep(0.6)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read.message == msg
+
+
+def test_set_vt_to_smaller_value(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_id = pgmq.send(queue_name, msg)
+    _ = pgmq.read(queue_name, vt=5)  # set vt to 5 seconds
+    assert msg is not None
+    assert pgmq.read(queue_name) is None
+    time.sleep(0.5)
+    assert pgmq.set_vt(queue_name, msg_id, 1) is not None
+    time.sleep(0.3)
+    assert pgmq.read(queue_name) is None
+    time.sleep(0.8)
+    assert pgmq.read(queue_name) is not None
+
+
 def test_pop(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
     msg = MSG
