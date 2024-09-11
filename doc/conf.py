@@ -9,6 +9,7 @@ import sys
 # path setup
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("../pgmq_sqlalchemy"))
+sys.path.insert(0, os.path.abspath("."))  # for custom_autodoc
 
 extensions = [
     "sphinx_copybutton",
@@ -16,6 +17,8 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
+    # override docstring
+    "custom_autodoc",
 ]
 
 html_theme = "sphinx_rtd_theme"
