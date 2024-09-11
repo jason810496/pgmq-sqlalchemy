@@ -38,10 +38,10 @@ exec-db: ## Enter the database container
 	docker compose exec pgmq_postgres psql -U postgres -d postgres
 
 doc-build: ## Build the documentation
-	cd doc && poetry run sphinx-build -nW . _build
+	cd doc && poetry run sphinx-build -n . _build
 
 doc-serve: doc-clean ## Serve the documentation
-	cd doc && poetry run sphinx-autobuild -nW . _build
+	cd doc && poetry run sphinx-autobuild -n . _build
 
 doc-clean: ## Clean the documentation
 	cd doc && rm -r _build
