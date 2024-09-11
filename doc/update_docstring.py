@@ -111,11 +111,22 @@ def update_function_docstring(
             ):
                 # Function has a docstring
                 original_docstring = ast.get_docstring(node)
-                new_docstring = f"{before_string}\n{original_docstring}\n{after_string}"
-                node.body[0].value.s = new_docstring
+                new_docstring = original_docstring
+
+                # Check if before_string is not already present at the start
+                if not original_docstring.startswith(before_string.strip()):
+                    new_docstring = f"{before_string.strip()}\n{new_docstring}"
+
+                # Check if after_string is not already present at the end
+                if not original_docstring.endswith(after_string.strip()):
+                    new_docstring = f"{new_docstring}\n{after_string.strip()}"
+
+                # Only update if changes were made
+                if new_docstring != original_docstring:
+                    node.body[0].value.s = new_docstring + "\n"
             else:
                 # Function doesn't have a docstring, create one
-                new_docstring = f"{before_string}\n{after_string}"
+                new_docstring = f"{before_string.strip()}\n{after_string.strip()}"
                 node.body.insert(0, ast.Expr(value=ast.Str(s=new_docstring)))
 
     return ast.unparse(tree)
