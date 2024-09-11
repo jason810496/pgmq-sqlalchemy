@@ -13,20 +13,13 @@ async def create_queue(
     db_cursor: AsyncDBAPICursor, queue_name: str, unlogged: bool = False
 ) -> None:
     """
-    .. _unlogged_table: https://www.postgresql.org/docs/current/sql-createtable.html#SQL-CREATETABLE-UNLOGGED
-    .. |unlogged_table| replace:: **UNLOGGED TABLE**
 
-    **Create a new queue.**
+    .. code-block:: python
 
-    * if ``unlogged`` is ``True``, the queue will be created as an |unlogged_table|_ .
-    * ``queue_name`` must be **less than 48 characters**.
-
-        .. code-block:: python
-
-            from pgmq_sqlalchemy import async_func as pgmq_func
-            await pgmq_func.create_queue(db_cursor, 'my_queue')
-            # or unlogged table queue
-            await pgmq_func.create_queue(db_cursor, 'my_queue', unlogged=True)
+        from pgmq_sqlalchemy import async_func as pgmq_func
+        await pgmq_func.create_queue(db_cursor, 'my_queue')
+        # or unlogged table queue
+        await pgmq_func.create_queue(db_cursor, 'my_queue', unlogged=True)
     """
     await func.create_queue(db_cursor, queue_name, unlogged)
 
@@ -38,7 +31,6 @@ async def create_partitioned_queue(
     retention_interval: int = 100000,
 ) -> None:
     """
-    Create a new **partitioned** queue.
 
     .. code-block:: python
 
@@ -68,7 +60,6 @@ async def drop_queue(
     db_cursor: AsyncDBAPICursor, queue: str, partitioned: bool = False
 ) -> bool:
     """
-    Drop a queue.
 
     .. code-block:: python
 
@@ -77,20 +68,19 @@ async def drop_queue(
         # for partitioned queue
         await pgmq_func.drop_queue(db_cursor, 'my_partitioned_queue', partitioned=True)
 
-    # ... (rest of the docstring remains the same) ...
     """
     return await func.drop_queue(db_cursor, queue, partitioned)
 
 
 async def list_queues(db_cursor: AsyncDBAPICursor) -> List[str]:
     """
-    List all queues.
 
     .. code-block:: python
 
         from pgmq_sqlalchemy import async_func as pgmq_func
         queue_list = await pgmq_func.list_queues(db_cursor)
         print(queue_list)
+
     """
     return await func.list_queues(db_cursor)
 
@@ -99,7 +89,6 @@ async def send(
     db_cursor: AsyncDBAPICursor, queue_name: str, message: dict, delay: int = 0
 ) -> int:
     """
-    Send a message to a queue.
 
     .. code-block:: python
 
@@ -107,7 +96,6 @@ async def send(
         msg_id = await pgmq_func.send(db_cursor, 'my_queue', {'key': 'value', 'key2': 'value2'})
         print(msg_id)
 
-    # ... (rest of the docstring remains the same) ...
     """
     return await func.send(db_cursor, queue_name, message, delay)
 
@@ -116,7 +104,6 @@ async def send_batch(
     db_cursor: AsyncDBAPICursor, queue_name: str, messages: List[dict], delay: int = 0
 ) -> List[int]:
     """
-    Send a batch of messages to a queue.
 
     .. code-block:: python
 
@@ -134,10 +121,14 @@ async def read(
     db_cursor: AsyncDBAPICursor, queue_name: str, vt: Optional[int] = None
 ) -> Optional[Message]:
     """
-    Read a message from the queue.
 
-    Returns:
-        Message or ``None`` if the queue is empty.
+    .. code-block:: python
+
+        from pgmq_sqlalchemy import async_func as pgmq_func
+        msg = await pgmq_func.read(db_cursor, 'my_queue')
+        if msg:
+            print(msg.msg_id)
+            print(msg.message)
     """
     return await func.read(db_cursor, queue_name, vt)
 
@@ -149,10 +140,16 @@ async def read_batch(
     vt: Optional[int] = None,
 ) -> Optional[List[Message]]:
     """
-    Read a batch of messages from the queue.
 
-    Returns:
-        List of Message or ``None`` if the queue is empty.
+    .. code-block:: python
+
+        from pgmq_sqlalchemy import async_func as pgmq_func
+        msgs = await pgmq_func.read_batch(db_cursor, 'my_queue', batch_size=10)
+        if msgs:
+            for msg in msgs:
+                print(msg.msg_id)
+                print(msg.message)
+
     """
     return await func.read_batch(db_cursor, queue_name, vt, batch_size)
 
@@ -166,20 +163,33 @@ async def read_with_poll(
     poll_interval_ms: int = 100,
 ) -> Optional[List[Message]]:
     """
-    Read messages from a queue with long-polling.
 
-    When the queue is empty, the function block at most ``max_poll_seconds`` seconds.
-    During the polling, the function will check the queue every ``poll_interval_ms`` milliseconds, until the queue has ``qty`` messages.
+    Usage:
 
-    Args:
-        queue_name (str): The name of the queue.
-        vt (Optional[int]): The visibility timeout in seconds.
-        qty (int): The number of messages to read.
-        max_poll_seconds (int): The maximum number of seconds to poll.
-        poll_interval_ms (int): The interval in milliseconds to poll.
+    .. code-block:: python
 
-    Returns:
-        List of Message or ``None`` if the queue is empty.
+        msg_id = pgmq_client.send('my_queue', {'key': 'value'}, delay=6)
+
+        # the following code will block for 5 seconds
+        msgs = pgmq_client.read_with_poll('my_queue', qty=1, max_poll_seconds=5, poll_interval_ms=100)
+        assert msgs is None
+
+        # try read_with_poll again
+        # the following code will only block for 1 second
+        msgs = pgmq_client.read_with_poll('my_queue', qty=1, max_poll_seconds=5, poll_interval_ms=100)
+        assert msgs is not None
+
+    Another example:
+
+    .. code-block:: python
+
+        msg = {'key': 'value'}
+        msg_ids = pgmq_client.send_batch('my_queue', [msg, msg, msg, msg], delay=3)
+
+        # the following code will block for 3 seconds
+        msgs = pgmq_client.read_with_poll('my_queue', qty=3, max_poll_seconds=5, poll_interval_ms=100)
+        assert len(msgs) == 3 # will read at most 3 messages (qty=3)
+
     """
     return await func.read_with_poll(
         db_cursor, queue_name, vt, qty, max_poll_seconds, poll_interval_ms
@@ -188,7 +198,6 @@ async def read_with_poll(
 
 async def pop(db_cursor: AsyncDBAPICursor, queue_name: str) -> Optional[Message]:
     """
-    Reads a single message from a queue and deletes it upon read.
 
     .. code-block:: python
 
@@ -203,10 +212,13 @@ async def pop(db_cursor: AsyncDBAPICursor, queue_name: str) -> Optional[Message]
 
 async def delete(db_cursor: AsyncDBAPICursor, queue_name: str, msg_id: int) -> bool:
     """
-    Delete a message from the queue.
 
-    Returns:
-        bool: ``True`` if the message is deleted successfully, ``False`` if the message does not exist.
+    .. code-block:: python
+
+            msg_id = pgmq_client.send('my_queue', {'key': 'value'})
+            assert pgmq_client.delete('my_queue', msg_id)
+            assert not pgmq_client.delete('my_queue', msg_id)
+
     """
     return await func.delete(db_cursor, queue_name, msg_id)
 
@@ -215,10 +227,10 @@ async def delete_batch(
     db_cursor: AsyncDBAPICursor, queue_name: str, msg_ids: List[int]
 ) -> List[int]:
     """
-    Delete a batch of messages from the queue.
+    .. code-block:: python
 
-    Returns:
-        List of int: The list of message IDs that are successfully deleted.
+        msg_ids = pgmq_client.send_batch('my_queue', [{'key': 'value'}, {'key': 'value'}])
+        assert pgmq_client.delete_batch('my_queue', msg_ids) == msg_ids
     """
     return await func.delete_batch(db_cursor, queue_name, msg_ids)
 

@@ -13,20 +13,14 @@ def create_queue(
     db_cursor: DBAPICursor, queue_name: str, unlogged: bool = False
 ) -> None:
     """
-    .. _unlogged_table: https://www.postgresql.org/docs/current/sql-createtable.html#SQL-CREATETABLE-UNLOGGED
-    .. |unlogged_table| replace:: **UNLOGGED TABLE**
 
-    **Create a new queue.**
+    .. code-block:: python
 
-    * if ``unlogged`` is ``True``, the queue will be created as an |unlogged_table|_ .
-    * ``queue_name`` must be **less than 48 characters**.
+        from pgmq_sqlalchemy import func as pgmq_func
+        pgmq_func.create_queue(db_cursor, 'my_queue')
+        # or unlogged table queue
+        pgmq_func.create_queue(db_cursor, 'my_queue', unlogged=True)
 
-        .. code-block:: python
-
-            from pgmq_sqlalchemy import func as pgmq_func
-            pgmq_func.create_queue(db_cursor, 'my_queue')
-            # or unlogged table queue
-            pgmq_func.create_queue(db_cursor, 'my_queue', unlogged=True)
     """
     sql, params = _statement.create_queue(queue_name, unlogged)
     db_cursor.execute(sql, params)
