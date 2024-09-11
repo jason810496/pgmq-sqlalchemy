@@ -177,22 +177,18 @@ class PGMQueue:
             await session.commit()
 
     def create_queue(self, queue_name: str, unlogged: bool = False) -> None:
+        # doc.CREATE_QUEUE_DOCSTRING_BEFORE
         """
-        .. _unlogged_table: https://www.postgresql.org/docs/current/sql-createtable.html#SQL-CREATETABLE-UNLOGGED
-        .. |unlogged_table| replace:: **UNLOGGED TABLE**
 
-        **Create a new queue.**
+        .. code-block:: python
 
-        * if ``unlogged`` is ``True``, the queue will be created as an |unlogged_table|_ .
-        * ``queue_name`` must be **less than 48 characters**.
-
-            .. code-block:: python
-
-                pgmq_client.create_queue('my_queue')
-                # or unlogged table queue
-                pgmq_client.create_queue('my_queue', unlogged=True)
+            pgmq_client.create_queue('my_queue')
+            # or unlogged table queue
+            pgmq_client.create_queue('my_queue', unlogged=True)
 
         """
+        # doc.CREATE_QUEUE_DOCSTRING_AFTER
+
         if self.is_async:
             return self.loop.run_until_complete(
                 self._create_queue_async(queue_name, unlogged)
@@ -245,31 +241,16 @@ class PGMQueue:
         partition_interval: int = 10000,
         retention_interval: int = 100000,
     ) -> None:
-        """Create a new **partitioned** queue.
-
-        .. _pgmq_partitioned_queue: https://github.com/tembo-io/pgmq?tab=readme-ov-file#partitioned-queues
-        .. |pgmq_partitioned_queue| replace:: **PGMQ: Partitioned Queues**
+        # doc.CREATE_QUEUE_DOCSTRING_BEFORE
+        """
 
         .. code-block:: python
 
-                pgmq_client.create_partitioned_queue('my_partitioned_queue', partition_interval=10000, retention_interval=100000)
-
-        Args:
-            queue_name (str): The name of the queue, should be less than 48 characters.
-            partition_interval (int): Will create a new partition every ``partition_interval`` messages.
-            retention_interval (int): The interval for retaining partitions. Any messages that have a `msg_id` less than ``max(msg_id)`` - ``retention_interval`` will be dropped.
-
-                .. note::
-                    | Currently, only support for partitioning by **msg_id**.
-                    | Will add **time-based partitioning** in the future ``pgmq-sqlalchemy`` release.
-
-        .. important::
-            | You must make sure that the ``pg_partman`` extension already **installed** in the Postgres.
-            | ``pgmq-sqlalchemy`` will **auto create** the ``pg_partman`` extension if it does not exist in the Postgres.
-            | For more details about ``pgmq`` with ``pg_partman``, checkout the |pgmq_partitioned_queue|_.
-
+            pgmq_client.create_partitioned_queue('my_partitioned_queue', partition_interval=10000, retention_interval=100000)
 
         """
+        # doc.CREATE_QUEUE_DOCSTRING_AFTER
+
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
         self._check_pg_partman_ext()
 
@@ -332,10 +313,8 @@ class PGMQueue:
             return row[0]
 
     def drop_queue(self, queue: str, partitioned: bool = False) -> bool:
-        """Drop a queue.
-
-        .. _drop_queue_method: ref:`pgmq_sqlalchemy.PGMQueue.drop_queue`
-        .. |drop_queue_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.drop_queue`
+        # doc.DROP_QUEUE_DOCSTRING_BEFORE
+        """
 
         .. code-block:: python
 
@@ -343,12 +322,9 @@ class PGMQueue:
             # for partitioned queue
             pgmq_client.drop_queue('my_partitioned_queue', partitioned=True)
 
-        .. warning::
-            | All messages and queue itself will be deleted. (``pgmq.q_<queue_name>`` table)
-            | **Archived tables** (``pgmq.a_<queue_name>`` table **will be dropped as well. )**
-            |
-            | See |archive_method|_ for more details.
         """
+        # doc.DROP_QUEUE_DOCSTRING_AFTER
+
         # check if the pg_partman extension exists before dropping a partitioned queue at runtime
         if partitioned:
             self._check_pg_partman_ext()
@@ -380,13 +356,15 @@ class PGMQueue:
             return [row[0] for row in rows]
 
     def list_queues(self) -> List[str]:
-        """List all queues.
+        # doc.LIST_QUEUES_DOCSTRING_BEFORE
+        """
 
         .. code-block:: python
 
             queue_list = pgmq_client.list_queues()
             print(queue_list)
         """
+        # doc.LIST_QUEUES_DOCSTRING_AFTER
         if self.is_async:
             return self.loop.run_until_complete(self._list_queues_async())
         return self._list_queues_sync()
@@ -412,8 +390,8 @@ class PGMQueue:
         return row[0]
 
     def send(self, queue_name: str, message: dict, delay: int = 0) -> int:
-        """Send a message to a queue.
-
+        # doc.SEND_DOCSTRING_BEFORE
+        """
         .. code-block:: python
 
             msg_id = pgmq_client.send('my_queue', {'key': 'value', 'key2': 'value2'})
@@ -467,8 +445,8 @@ class PGMQueue:
     def send_batch(
         self, queue_name: str, messages: List[dict], delay: int = 0
     ) -> List[int]:
+        # doc.SEND_BATCH_DOCSTRING_BEFORE
         """
-        Send a batch of messages to a queue.
 
         .. code-block:: python
 
@@ -479,6 +457,7 @@ class PGMQueue:
             msg_ids = pgmq_client.send_batch('my_queue', msgs, delay=10)
 
         """
+        # doc.SEND_BATCH_DOCSTRING_AFTER
         if self.is_async:
             return self.loop.run_until_complete(
                 self._send_batch_async(queue_name, encode_list_to_psql(messages), delay)
@@ -514,30 +493,10 @@ class PGMQueue:
         )
 
     def read(self, queue_name: str, vt: Optional[int] = None) -> Optional[Message]:
+        # doc.READ_DOCSTRING_BEFORE
         """
-        .. _for_update_skip_locked: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
-        .. |for_update_skip_locked| replace:: **FOR UPDATE SKIP LOCKED**
 
-        .. _read_method: ref:`pgmq_sqlalchemy.PGMQueue.read`
-        .. |read_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.read`
-
-        Read a message from the queue.
-
-        Returns:
-            |schema_message_class|_ or ``None`` if the queue is empty.
-
-        .. note::
-            | ``PGMQ`` use |for_update_skip_locked|_ lock to make sure **a message is only read by one consumer**.
-            | See the `pgmq.read <https://github.com/tembo-io/pgmq/blob/main/pgmq-extension/sql/pgmq.sql?plain=1#L44-L75>`_ function for more details.
-            |
-            | For **consumer retries mechanism** (e.g. mark a message as failed after a certain number of retries) can be implemented by using the ``read_ct`` field in the |schema_message_class|_ object.
-
-
-        .. important::
-            | ``vt`` is the **visibility timeout** in seconds.
-            | When a message is read from the queue, it will be invisible to other consumers for the duration of the ``vt``.
-
-        Usage:
+        .. code-block:: python
 
         .. code-block:: python
 
@@ -645,12 +604,8 @@ class PGMQueue:
         batch_size: int = 1,
         vt: Optional[int] = None,
     ) -> Optional[List[Message]]:
+        # doc.READ_BATCH_DOCSTRING_BEFORE
         """
-        | Read a batch of messages from the queue.
-        | Usage:
-
-        Returns:
-            List of |schema_message_class|_ or ``None`` if the queue is empty.
 
         .. code-block:: python
 
@@ -751,26 +706,8 @@ class PGMQueue:
         max_poll_seconds: int = 5,
         poll_interval_ms: int = 100,
     ) -> Optional[List[Message]]:
+        # doc.READ_WITH_POLL_DOCSTRING_BEFORE
         """
-
-        .. _read_with_poll_method: ref:`pgmq_sqlalchemy.PGMQueue.read_with_poll`
-        .. |read_with_poll_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.read_with_poll`
-
-
-        | Read messages from a queue with long-polling.
-        |
-        | When the queue is empty, the function block at most ``max_poll_seconds`` seconds.
-        | During the polling, the function will check the queue every ``poll_interval_ms`` milliseconds, until the queue has ``qty`` messages.
-
-        Args:
-            queue_name (str): The name of the queue.
-            vt (Optional[int]): The visibility timeout in seconds.
-            qty (int): The number of messages to read.
-            max_poll_seconds (int): The maximum number of seconds to poll.
-            poll_interval_ms (int): The interval in milliseconds to poll.
-
-        Returns:
-            List of |schema_message_class|_ or ``None`` if the queue is empty.
 
         Usage:
 
@@ -841,8 +778,8 @@ class PGMQueue:
         )
 
     def pop(self, queue_name: str) -> Optional[Message]:
+        # doc.POP_DOCSTRING_BEFORE
         """
-        Reads a single message from a queue and deletes it upon read.
 
         .. code-block:: python
 
@@ -884,15 +821,8 @@ class PGMQueue:
         return row[0]
 
     def delete(self, queue_name: str, msg_id: int) -> bool:
+        # doc.DELETE_DOCSTRING_BEFORE
         """
-        Delete a message from the queue.
-
-        .. _delete_method: ref:`pgmq_sqlalchemy.PGMQueue.delete`
-        .. |delete_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.delete`
-
-        * Raises an error if the ``queue_name`` does not exist.
-        * Returns ``True`` if the message is deleted successfully.
-        * If the message does not exist, returns ``False``.
 
         .. code-block:: python
 
@@ -934,15 +864,8 @@ class PGMQueue:
         return [row[0] for row in rows]
 
     def delete_batch(self, queue_name: str, msg_ids: List[int]) -> List[int]:
+        # doc.DELETE_BATCH_DOCSTRING_BEFORE
         """
-        Delete a batch of messages from the queue.
-
-        .. _delete_batch_method: ref:`pgmq_sqlalchemy.PGMQueue.delete_batch`
-        .. |delete_batch_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.delete_batch`
-
-        .. note::
-            | Instead of return `bool` like |delete_method|_,
-            | |delete_batch_method|_ will return a list of ``msg_id`` that are successfully deleted.
 
         .. code-block:: python
 
@@ -977,17 +900,8 @@ class PGMQueue:
         return row[0]
 
     def archive(self, queue_name: str, msg_id: int) -> bool:
+        # doc.ARCHIVE_DOCSTRING_BEFORE
         """
-        Archive a message from a queue.
-
-        .. _archive_method: ref:`pgmq_sqlalchemy.PGMQueue.archive`
-        .. |archive_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.archive`
-
-
-        * Message will be deleted from the queue and moved to the archive table.
-            * Will be deleted from ``pgmq.q_<queue_name>`` and be inserted into the ``pgmq.a_<queue_name>`` table.
-        * raises an error if the ``queue_name`` does not exist.
-        * returns ``True`` if the message is archived successfully.
 
         .. code-block:: python
 
@@ -1024,11 +938,8 @@ class PGMQueue:
         return [row[0] for row in rows]
 
     def archive_batch(self, queue_name: str, msg_ids: List[int]) -> List[int]:
+        # doc.ARCHIVE_BATCH_DOCSTRING_BEFORE
         """
-        Archive multiple messages from a queue.
-
-        * Messages will be deleted from the queue and moved to the archive table.
-        * Returns a list of ``msg_id`` that are successfully archived.
 
         .. code-block:: python
 
@@ -1066,9 +977,8 @@ class PGMQueue:
         return row[0]
 
     def purge(self, queue_name: str) -> int:
+        # doc.PURGE_DOCSTRING_BEFORE
         """
-        * Delete all messages from a queue, return the number of messages deleted.
-        * Archive tables will **not** be affected.
 
         .. code-block:: python
 
@@ -1119,11 +1029,8 @@ class PGMQueue:
         )
 
     def metrics(self, queue_name: str) -> Optional[QueueMetrics]:
+        # doc.METRICS_DOCSTRING_BEFORE
         """
-        Get metrics for a queue.
-
-        Returns:
-            |schema_queue_metrics_class|_ or ``None`` if the queue does not exist.
 
         Usage:
 
@@ -1178,18 +1085,8 @@ class PGMQueue:
         ]
 
     def metrics_all(self) -> Optional[List[QueueMetrics]]:
+        # doc.METRICS_ALL_DOCSTRING_BEFORE
         """
-
-        .. _read_committed_isolation_level: https://www.postgresql.org/docs/current/transaction-iso.html#XACT-READ-COMMITTED
-        .. |read_committed_isolation_level| replace:: **READ COMMITTED**
-
-        .. _metrics_all_method: ref:`pgmq_sqlalchemy.PGMQueue.metrics_all`
-        .. |metrics_all_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.metrics_all`
-
-        Get metrics for all queues.
-
-        Returns:
-            List of |schema_queue_metrics_class|_ or ``None`` if there are no queues.
 
         Usage:
 
