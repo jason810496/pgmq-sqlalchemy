@@ -15,6 +15,24 @@ API Reference
     :special-members: __init__
 
 
+Function
+--------
+
+.. automodule:: pgmq_sqlalchemy.func
+    :members:
+    :member-order: bysource
+
+Async Function
+--------------
+
+.. automodule:: pgmq_sqlalchemy.async_func
+    :members:
+    :member-order: bysource
+    
+
+Data Classes
+------------
+
 .. autoclass:: pgmq_sqlalchemy.schema.Message
     :members:
     :undoc-members:
