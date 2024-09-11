@@ -3,47 +3,12 @@ Internal script to update docstring.
 Update common docstring define in pgmq_sqlalchemy/_docstring.py to respecitve module docstring.
 """
 
-import sys
 import importlib
 import ast
 import difflib
 import subprocess
-from typing import Union, Dict, List, Callable
 
-sys.path.append("..")
-
-from pgmq_sqlalchemy import (
-    PGMQueue,
-    func,
-    async_func,
-)
-import pgmq_sqlalchemy._docstring as doc
-
-"""
-{
-    "group_name":{
-        "functions":[
-            module_name.function_name,
-            module_name.class_name.method_name,
-        ],
-        "docstring_before": DOCSTRING_BEFORE,
-        "docstring_after": DOCSTRING_AFTER,
-    }
-}
-"""
-DEFINITION_TYPE = Dict[str, Dict[str, Union[str, List[Callable]]]]
-
-docstring_definition: DEFINITION_TYPE = {
-    "create_queue": {
-        "functions": [
-            PGMQueue.create_queue,
-            func.create_queue,
-            async_func.create_queue,
-        ],
-        "docstring_before": doc.CREATE_QUEUE_DOCSTRING_BEFORE,
-        "docstring_after": doc.CREATE_QUEUE_DOCSTRING_AFTER,
-    }
-}
+from doc.link_docstring import DEFINITION_TYPE, docstring_definition
 
 # color
 GREEN = "\033[92m"
