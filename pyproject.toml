@@ -69,3 +69,6 @@ sphinx-copybutton = "^0.5.2"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff.lint.per-file-ignores]
+"doc/update_docstring.py" = ["E402"]
