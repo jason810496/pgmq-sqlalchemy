@@ -7,6 +7,7 @@ import sys
 import importlib
 import ast
 import difflib
+import subprocess
 from typing import Union, Dict, List, Callable
 
 sys.path.append("..")
@@ -44,6 +45,13 @@ docstring_definition: DEFINITION_TYPE = {
     }
 }
 
+# color
+GREEN = "\033[92m"
+RED = "\033[91m"
+CYAN = "\033[96m"
+BOLD = "\033[1m"
+ENDC = "\033[0m"
+
 
 def update_docstring(definition: DEFINITION_TYPE):
     """Update docstring in the module."""
@@ -74,7 +82,7 @@ def update_docstring(definition: DEFINITION_TYPE):
 
             if has_changes:
                 user_input = input(
-                    f"\nDo you want to apply these changes to {function_name} in {module_name}? (y/n): "
+                    f"\nDo you want to apply these changes to {BOLD}{function_name}{ENDC} in {BOLD}{module_name}{ENDC}? (y/n): "
                 ).lower()
                 if user_input == "y":
                     # Write the updated content back to the file
@@ -90,7 +98,7 @@ def update_docstring(definition: DEFINITION_TYPE):
 
 
 def update_function_docstring(
-    content: str, function_name: str, before: str, after: str
+    content: str, function_name: str, before_string: str, after_string: str
 ) -> str:
     """Update the docstring of a specific function in the given content."""
     tree = ast.parse(content)
@@ -103,11 +111,11 @@ def update_function_docstring(
             ):
                 # Function has a docstring
                 original_docstring = ast.get_docstring(node)
-                new_docstring = f"{before}\n{original_docstring}\n{after}"
+                new_docstring = f"{before_string}\n{original_docstring}\n{after_string}"
                 node.body[0].value.s = new_docstring
             else:
                 # Function doesn't have a docstring, create one
-                new_docstring = f"{before}\n{after}"
+                new_docstring = f"{before_string}\n{after_string}"
                 node.body.insert(0, ast.Expr(value=ast.Str(s=new_docstring)))
 
     return ast.unparse(tree)
@@ -126,11 +134,6 @@ def preview_changes(original: str, modified: str):
     """Generate and display a unified diff of the changes with colored output."""
     original_lines = original.splitlines(keepends=True)
     modified_lines = modified.splitlines(keepends=True)
-    # color
-    GREEN = "\033[92m"
-    RED = "\033[91m"
-    CYAN = "\033[96m"
-    ENDC = "\033[0m"
 
     # Generate the unified diff
     diff = difflib.unified_diff(
@@ -155,5 +158,13 @@ def preview_changes(original: str, modified: str):
     return has_changes
 
 
+def format_code():
+    """
+    Format the code using `pre-commit run --all-files` at project root.
+    """
+    subprocess.run(["pre-commit", "run", "--all-files"])
+
+
 if __name__ == "__main__":
     update_docstring(docstring_definition)
+    format_code()
