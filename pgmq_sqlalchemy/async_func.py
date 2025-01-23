@@ -5,7 +5,7 @@ async functions
 from typing import List, Optional
 
 from ._types import AsyncDBAPICursor
-from . import func
+from . import _statement
 from .schema import Message, QueueMetrics
 
 
@@ -21,7 +21,8 @@ async def create_queue(
         # or unlogged table queue
         await pgmq_func.create_queue(db_cursor, 'my_queue', unlogged=True)
     """
-    await func.create_queue(db_cursor, queue_name, unlogged)
+    sql, params = _statement.create_queue(queue_name, unlogged)
+    await db_cursor.execute(sql, *params)
 
 
 async def create_partitioned_queue(
@@ -39,9 +40,10 @@ async def create_partitioned_queue(
 
     # ... (rest of the docstring remains the same) ...
     """
-    await func.create_partitioned_queue(
-        db_cursor, queue_name, partition_interval, retention_interval
+    sql, params = _statement.create_partitioned_queue(
+        queue_name, partition_interval, retention_interval
     )
+    await db_cursor.execute(sql, params)
 
 
 async def validate_queue_name(db_cursor: AsyncDBAPICursor, queue_name: str) -> None:
@@ -53,7 +55,8 @@ async def validate_queue_name(db_cursor: AsyncDBAPICursor, queue_name: str) -> N
         from pgmq_sqlalchemy import async_func as pgmq_func
         await pgmq_func.validate_queue_name(db_cursor, 'my_queue')
     """
-    await func.validate_queue_name(db_cursor, queue_name)
+    sql, params = _statement.validate_queue_name(queue_name)
+    await db_cursor.execute(sql, params)
 
 
 async def drop_queue(
@@ -69,7 +72,8 @@ async def drop_queue(
         await pgmq_func.drop_queue(db_cursor, 'my_partitioned_queue', partitioned=True)
 
     """
-    return await func.drop_queue(db_cursor, queue, partitioned)
+    sql, params = _statement.drop_queue(queue, partitioned)
+    await db_cursor.execute(sql, params)
 
 
 async def list_queues(db_cursor: AsyncDBAPICursor) -> List[str]:
@@ -82,7 +86,8 @@ async def list_queues(db_cursor: AsyncDBAPICursor) -> List[str]:
         print(queue_list)
 
     """
-    return await func.list_queues(db_cursor)
+    sql, params = _statement.list_queues()
+    await db_cursor.execute(sql, params)
 
 
 async def send(
@@ -97,7 +102,8 @@ async def send(
         print(msg_id)
 
     """
-    return await func.send(db_cursor, queue_name, message, delay)
+    sql, params = _statement.send(queue_name, message, delay)
+    await db_cursor.execute(sql, params)
 
 
 async def send_batch(
@@ -114,7 +120,8 @@ async def send_batch(
         # send with delay
         msg_ids = await pgmq_func.send_batch(db_cursor, 'my_queue', msgs, delay=10)
     """
-    return await func.send_batch(db_cursor, queue_name, messages, delay)
+    sql, params = _statement.send_batch(queue_name, messages, delay)
+    await db_cursor.execute(sql, params)
 
 
 async def read(
@@ -130,7 +137,8 @@ async def read(
             print(msg.msg_id)
             print(msg.message)
     """
-    return await func.read(db_cursor, queue_name, vt)
+    sql, params = _statement.read(queue_name, vt)
+    await db_cursor.execute(sql, params)
 
 
 async def read_batch(
@@ -151,7 +159,8 @@ async def read_batch(
                 print(msg.message)
 
     """
-    return await func.read_batch(db_cursor, queue_name, vt, batch_size)
+    sql, params = _statement.read_batch(queue_name, vt, batch_size)
+    await db_cursor.execute(sql, params)
 
 
 async def read_with_poll(
@@ -191,9 +200,10 @@ async def read_with_poll(
         assert len(msgs) == 3 # will read at most 3 messages (qty=3)
 
     """
-    return await func.read_with_poll(
-        db_cursor, queue_name, vt, qty, max_poll_seconds, poll_interval_ms
+    sql, params = _statement.read_with_poll(
+        queue_name, vt, qty, max_poll_seconds, poll_interval_ms
     )
+    await db_cursor.execute(sql, params)
 
 
 async def pop(db_cursor: AsyncDBAPICursor, queue_name: str) -> Optional[Message]:
@@ -207,7 +217,8 @@ async def pop(db_cursor: AsyncDBAPICursor, queue_name: str) -> Optional[Message]
             print(msg.msg_id)
             print(msg.message)
     """
-    return await func.pop(db_cursor, queue_name)
+    sql, params = _statement.pop(queue_name)
+    await db_cursor.execute(sql, params)
 
 
 async def delete(db_cursor: AsyncDBAPICursor, queue_name: str, msg_id: int) -> bool:
@@ -220,7 +231,8 @@ async def delete(db_cursor: AsyncDBAPICursor, queue_name: str, msg_id: int) -> b
             assert not pgmq_client.delete('my_queue', msg_id)
 
     """
-    return await func.delete(db_cursor, queue_name, msg_id)
+    sql, params = _statement.delete(queue_name, msg_id)
+    await db_cursor.execute(sql, params)
 
 
 async def delete_batch(
@@ -232,7 +244,8 @@ async def delete_batch(
         msg_ids = pgmq_client.send_batch('my_queue', [{'key': 'value'}, {'key': 'value'}])
         assert pgmq_client.delete_batch('my_queue', msg_ids) == msg_ids
     """
-    return await func.delete_batch(db_cursor, queue_name, msg_ids)
+    sql, params = _statement.delete_batch(queue_name, msg_ids)
+    await db_cursor.execute(sql, params)
 
 
 async def archive(db_cursor: AsyncDBAPICursor, queue_name: str, msg_id: int) -> bool:
@@ -242,7 +255,8 @@ async def archive(db_cursor: AsyncDBAPICursor, queue_name: str, msg_id: int) -> 
     Returns:
         bool: ``True`` if the message is archived successfully, ``False`` if the message does not exist.
     """
-    return await func.archive(db_cursor, queue_name, msg_id)
+    sql, params = _statement.archive(queue_name, msg_id)
+    await db_cursor.execute(sql, params)
 
 
 async def archive_batch(
@@ -254,7 +268,8 @@ async def archive_batch(
     Returns:
         List of int: The list of message IDs that are successfully archived.
     """
-    return await func.archive_batch(db_cursor, queue_name, msg_ids)
+    sql, params = _statement.archive_batch(queue_name, msg_ids)
+    await db_cursor.execute(sql, params)
 
 
 async def purge(db_cursor: AsyncDBAPICursor, queue_name: str) -> int:
@@ -264,7 +279,8 @@ async def purge(db_cursor: AsyncDBAPICursor, queue_name: str) -> int:
     Returns:
         int: The number of messages purged.
     """
-    return await func.purge(db_cursor, queue_name)
+    sql, params = _statement.purge(queue_name)
+    await db_cursor.execute(sql, params)
 
 
 async def metrics(
@@ -276,7 +292,8 @@ async def metrics(
     Returns:
         QueueMetrics or ``None`` if the queue does not exist.
     """
-    return await func.metrics(db_cursor, queue_name)
+    sql, params = _statement.metrics(queue_name)
+    await db_cursor.execute(sql, params)
 
 
 async def metrics_all(db_cursor: AsyncDBAPICursor) -> Optional[List[QueueMetrics]]:
@@ -302,4 +319,5 @@ async def metrics_all(db_cursor: AsyncDBAPICursor) -> Optional[List[QueueMetrics
 
     # ... (rest of the docstring remains the same) ...
     """
-    return await func.metrics_all(db_cursor)
+    sql, params = _statement.metrics_all()
+    await db_cursor.execute(sql, params)

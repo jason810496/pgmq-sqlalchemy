@@ -8,7 +8,7 @@ build: ## Build the package
 	poetry build
 
 test-local: ## Run tests locally
-	poetry run pytest tests --cov=pgmq_sqlalchemy.queue
+	poetry run pytest tests --cov=pgmq_sqlalchemy.queue --cov=pgmq_sqlalchemy.func --cov=pgmq_sqlalchemy.async_func -n auto
 
 
 test-docker-rebuild: ## Rebuild the docker image

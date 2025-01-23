@@ -5,7 +5,7 @@ sync functions
 from typing import List, Optional
 
 from ._types import DBAPICursor
-from . import _statement
+from .statement import db_api_statement as _statement
 from .schema import Message, QueueMetrics
 
 

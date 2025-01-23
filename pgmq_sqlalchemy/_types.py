@@ -1,4 +1,4 @@
-from typing import Union, Any
+from typing import Union, Any, Literal
 from collections.abc import Mapping, Sequence
 from ._db_api_interface import DBAPICursor
 
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 ENGINE_TYPE = Union[Engine, AsyncEngine]
 SESSION_TYPE = Union[Session, AsyncSession]
+PARAM_STYLE_TYPE = Literal["qmark", "numeric", "named", "format", "pyformat"]
 
 
 class AsyncDBAPICursor(DBAPICursor):

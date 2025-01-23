@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -15,6 +15,13 @@ from ._utils import (
     encode_list_to_psql,
 )
 
+DIALECTS_TYPE = Literal[
+    "sqlalchemy",
+    "asyncpg",
+    "psycopg2",
+    "psycopg3",
+]
+
 
 class PGMQueue:
     engine: ENGINE_TYPE = None
@@ -28,9 +35,17 @@ class PGMQueue:
 
     def __init__(
         self,
+        # dialect: DIALECTS_TYPE,
+        # for sqlalchemy
         dsn: Optional[str] = None,
         engine: Optional[ENGINE_TYPE] = None,
         session_maker: Optional[sessionmaker] = None,
+        # for other db api drivers
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        database: Optional[str] = None,
     ) -> None:
         """
 

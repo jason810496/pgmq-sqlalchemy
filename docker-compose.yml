@@ -22,7 +22,7 @@ services:
       - pgmq_postgres
     volumes:
       - ./stateful_volumes/htmlcov:/pgmq_sqlalchemy_test/htmlcov
-    command: ["python","-m","pytest", "-v", "--cov=pgmq_sqlalchemy.queue", "--cov-report=html", "-n", "auto", "tests"]
+    command: ["python","-m","pytest", "-v", "--cov=pgmq_sqlalchemy.queue","--cov=pgmq_sqlalchemy.func","--cov=pgmq_sqlalchemy.async_func", "--cov-report=html", "-n", "auto", "tests"]
 
 networks:
   default:

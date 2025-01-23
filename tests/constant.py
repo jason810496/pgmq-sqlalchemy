@@ -1,8 +1,8 @@
 SYNC_DRIVERS = [
-    "pg8000",
+    # "pg8000",
     "psycopg2",
     "psycopg",
-    "psycopg2cffi",
+    # "psycopg2cffi",
 ]
 
 ASYNC_DRIVERS = [
@@ -10,11 +10,11 @@ ASYNC_DRIVERS = [
 ]
 
 DRIVERS = [
-    "pg8000",
+    # "pg8000",
     "psycopg2",
     "psycopg",
     "asyncpg",
-    "psycopg2cffi",
+    # "psycopg2cffi",
 ]
 
 MSG = {
