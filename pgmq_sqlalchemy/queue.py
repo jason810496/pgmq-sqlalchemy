@@ -1509,6 +1509,8 @@ class PGMQueue:
             print(archived_msg.message)
 
         """
+        # Validate queue name first to prevent SQL injection
+        self.validate_queue_name(queue_name)
         if self.is_async:
             return self.loop.run_until_complete(self._read_archive_async(queue_name))
         return self._read_archive_sync(queue_name)
@@ -1589,6 +1591,8 @@ class PGMQueue:
                 print(msg.message)
 
         """
+        # Validate queue name first to prevent SQL injection
+        self.validate_queue_name(queue_name)
         if self.is_async:
             return self.loop.run_until_complete(
                 self._read_archive_batch_async(queue_name, batch_size)
