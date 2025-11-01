@@ -573,6 +573,8 @@ class PGMQueue:
 
 
         """
+        if vt is None:
+            vt = self.vt
         if self.is_async:
             return self.loop.run_until_complete(self._read_async(queue_name, vt))
         return self._read_sync(queue_name, vt)
