@@ -450,9 +450,12 @@ def test_set_vt_not_exist(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 
 # Tests for detach_archive method
-def test_detach_archive(pgmq_setup_teardown: PGMQ_WITH_QUEUE, db_session):
+@pgmq_deps
+def test_detach_archive(pgmq_fixture, db_session):
     """Test detach_archive method - detaches archive table from queue."""
-    pgmq, queue_name = pgmq_setup_teardown
+    pgmq: PGMQueue = pgmq_fixture
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    pgmq.create_queue(queue_name)
     msg = MSG
     msg_id = pgmq.send(queue_name, msg)
     pgmq.archive(queue_name, msg_id)
@@ -465,18 +468,27 @@ def test_detach_archive(pgmq_setup_teardown: PGMQ_WITH_QUEUE, db_session):
     assert archived_msg is not None
     assert archived_msg.msg_id == msg_id
     
-    # Cleanup: Manually drop the detached archive table
-    # The fixture teardown will handle the queue itself
+    # Cleanup: Drop the archive and queue tables
+    # After detaching, the archive is no longer part of the extension
+    # We need to drop both tables manually by first removing them from the extension
     if pgmq.is_async:
         import asyncio
         async def cleanup():
             async with pgmq.session_maker() as session:
+                # Drop archive table (already detached)
                 await session.execute(text(f"DROP TABLE IF EXISTS pgmq.a_{queue_name} CASCADE;"))
+                # Detach and drop queue table
+                await session.execute(text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};"))
+                await session.execute(text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;"))
                 await session.commit()
         pgmq.loop.run_until_complete(cleanup())
     else:
         with pgmq.session_maker() as session:
+            # Drop archive table (already detached)
             session.execute(text(f"DROP TABLE IF EXISTS pgmq.a_{queue_name} CASCADE;"))
+            # Detach and drop queue table
+            session.execute(text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};"))
+            session.execute(text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;"))
             session.commit()
 
 
