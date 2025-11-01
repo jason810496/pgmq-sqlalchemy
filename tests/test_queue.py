@@ -459,35 +459,44 @@ def test_detach_archive(pgmq_fixture, db_session):
     msg = MSG
     msg_id = pgmq.send(queue_name, msg)
     pgmq.archive(queue_name, msg_id)
-    
+
     # Detach archive should not raise an error
     pgmq.detach_archive(queue_name)
-    
+
     # Read the archive to ensure it still exists after detaching
     archived_msg = pgmq.read_archive(queue_name)
     assert archived_msg is not None
     assert archived_msg.msg_id == msg_id
-    
+
     # Cleanup: Drop the archive and queue tables
     # After detaching, the archive is no longer part of the extension
     # We need to drop both tables manually by first removing them from the extension
     if pgmq.is_async:
-        import asyncio
+
         async def cleanup():
             async with pgmq.session_maker() as session:
                 # Drop archive table (already detached)
-                await session.execute(text(f"DROP TABLE IF EXISTS pgmq.a_{queue_name} CASCADE;"))
+                await session.execute(
+                    text(f"DROP TABLE IF EXISTS pgmq.a_{queue_name} CASCADE;")
+                )
                 # Detach and drop queue table
-                await session.execute(text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};"))
-                await session.execute(text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;"))
+                await session.execute(
+                    text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};")
+                )
+                await session.execute(
+                    text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;")
+                )
                 await session.commit()
+
         pgmq.loop.run_until_complete(cleanup())
     else:
         with pgmq.session_maker() as session:
             # Drop archive table (already detached)
             session.execute(text(f"DROP TABLE IF EXISTS pgmq.a_{queue_name} CASCADE;"))
             # Detach and drop queue table
-            session.execute(text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};"))
+            session.execute(
+                text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};")
+            )
             session.execute(text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;"))
             session.commit()
 
@@ -544,22 +553,30 @@ def test_read_archive_batch_limit(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 def test_create_time_based_partitioned_queue(pgmq_fixture, db_session):
     pgmq: PGMQueue = pgmq_fixture
     queue_name = f"test_queue_{uuid.uuid4().hex}"
-    pgmq.create_partitioned_queue(queue_name, partition_interval='1 day', retention_interval='7 days')
+    pgmq.create_partitioned_queue(
+        queue_name, partition_interval="1 day", retention_interval="7 days"
+    )
     assert check_queue_exists(db_session, queue_name) is True
 
 
 @pgmq_deps
-def test_create_time_based_partitioned_queue_various_intervals(pgmq_fixture, db_session):
+def test_create_time_based_partitioned_queue_various_intervals(
+    pgmq_fixture, db_session
+):
     pgmq: PGMQueue = pgmq_fixture
-    
+
     # Test with hour
     queue_name_hour = f"test_queue_{uuid.uuid4().hex}"
-    pgmq.create_partitioned_queue(queue_name_hour, partition_interval='1 hour', retention_interval='24 hours')
+    pgmq.create_partitioned_queue(
+        queue_name_hour, partition_interval="1 hour", retention_interval="24 hours"
+    )
     assert check_queue_exists(db_session, queue_name_hour) is True
-    
+
     # Test with week
     queue_name_week = f"test_queue_{uuid.uuid4().hex}"
-    pgmq.create_partitioned_queue(queue_name_week, partition_interval='1 week', retention_interval='4 weeks')
+    pgmq.create_partitioned_queue(
+        queue_name_week, partition_interval="1 week", retention_interval="4 weeks"
+    )
     assert check_queue_exists(db_session, queue_name_week) is True
 
 
@@ -568,7 +585,11 @@ def test_create_partitioned_queue_invalid_time_interval(pgmq_fixture):
     pgmq: PGMQueue = pgmq_fixture
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     with pytest.raises(ValueError) as e:
-        pgmq.create_partitioned_queue(queue_name, partition_interval='invalid interval', retention_interval='7 days')
+        pgmq.create_partitioned_queue(
+            queue_name,
+            partition_interval="invalid interval",
+            retention_interval="7 days",
+        )
     assert "Invalid time-based partition interval" in str(e.value)
 
 
@@ -577,5 +598,7 @@ def test_create_partitioned_queue_invalid_numeric_interval(pgmq_fixture):
     pgmq: PGMQueue = pgmq_fixture
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     with pytest.raises(ValueError) as e:
-        pgmq.create_partitioned_queue(queue_name, partition_interval=-100, retention_interval=100000)
+        pgmq.create_partitioned_queue(
+            queue_name, partition_interval=-100, retention_interval=100000
+        )
     assert "Numeric partition interval must be positive" in str(e.value)

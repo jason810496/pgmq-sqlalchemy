@@ -242,14 +242,14 @@ class PGMQueue:
 
     def _validate_partition_interval(self, interval: Union[int, str]) -> str:
         """Validate partition interval format.
-        
+
         Args:
             interval: Either an integer for numeric partitioning or a string for time-based partitioning
                      (e.g., '1 day', '1 hour', '7 days')
-        
+
         Returns:
             The validated interval as a string
-            
+
         Raises:
             ValueError: If the interval format is invalid
         """
@@ -257,10 +257,10 @@ class PGMQueue:
             if interval <= 0:
                 raise ValueError("Numeric partition interval must be positive")
             return str(interval)
-        
+
         # Validate time-based interval format
         # Valid PostgreSQL interval formats: '1 day', '7 days', '1 hour', '1 month', etc.
-        time_pattern = r'^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$'
+        time_pattern = r"^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$"
         if not re.match(time_pattern, interval.strip(), re.IGNORECASE):
             raise ValueError(
                 f"Invalid time-based partition interval: '{interval}'. "
@@ -284,7 +284,7 @@ class PGMQueue:
 
                 # Numeric partitioning (by msg_id)
                 pgmq_client.create_partitioned_queue('my_partitioned_queue', partition_interval=10000, retention_interval=100000)
-                
+
                 # Time-based partitioning (by enqueued_at)
                 pgmq_client.create_partitioned_queue('my_time_queue', partition_interval='1 day', retention_interval='7 days')
 
@@ -309,15 +309,21 @@ class PGMQueue:
         """
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
         self._check_pg_partman_ext()
-        
+
         # Validate partition intervals
-        validated_partition_interval = self._validate_partition_interval(partition_interval)
-        validated_retention_interval = self._validate_partition_interval(retention_interval)
+        validated_partition_interval = self._validate_partition_interval(
+            partition_interval
+        )
+        validated_retention_interval = self._validate_partition_interval(
+            retention_interval
+        )
 
         if self.is_async:
             return self.loop.run_until_complete(
                 self._create_partitioned_queue_async(
-                    queue_name, validated_partition_interval, validated_retention_interval
+                    queue_name,
+                    validated_partition_interval,
+                    validated_retention_interval,
                 )
             )
         return self._create_partitioned_queue_sync(
@@ -1458,7 +1464,9 @@ class PGMQueue:
         """Read a single message from the archive table synchronously."""
         with self.session_maker() as session:
             row = session.execute(
-                text(f"select msg_id, read_ct, enqueued_at, vt, message from pgmq.a_{queue_name} limit 1;")
+                text(
+                    f"select msg_id, read_ct, enqueued_at, vt, message from pgmq.a_{queue_name} limit 1;"
+                )
             ).fetchone()
             session.commit()
         if row is None:
@@ -1472,7 +1480,9 @@ class PGMQueue:
         async with self.session_maker() as session:
             row = (
                 await session.execute(
-                    text(f"select msg_id, read_ct, enqueued_at, vt, message from pgmq.a_{queue_name} limit 1;")
+                    text(
+                        f"select msg_id, read_ct, enqueued_at, vt, message from pgmq.a_{queue_name} limit 1;"
+                    )
                 )
             ).fetchone()
             await session.commit()
