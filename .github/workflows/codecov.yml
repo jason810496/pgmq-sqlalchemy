@@ -31,7 +31,7 @@ jobs:
           run: |
             poetry env use python${{ matrix.python-version }}
         - name: Install dependencies
-          run: poetry install --without=dev
+          run: poetry install --with dev
         - name: Start PostgreSQL
           run: |
             cp pgmq_postgres.template.env pgmq_postgres.env
