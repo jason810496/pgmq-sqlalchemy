@@ -287,6 +287,12 @@ def test_set_vt_to_smaller_value(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     assert pgmq.read(queue_name) is not None
 
 
+def test_set_vt_not_exist(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    pgmq, queue_name = pgmq_setup_teardown
+    msg_updated = pgmq.set_vt(queue_name, 999, 20)
+    assert msg_updated is None
+
+
 def test_pop(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
     msg = MSG
@@ -428,25 +434,6 @@ def test_metrics_all_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
         assert queue_2.queue_length == 2
         assert queue_1.total_messages == 3
         assert queue_2.total_messages == 2
-
-
-# Tests for set_vt method
-def test_set_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
-    pgmq, queue_name = pgmq_setup_teardown
-    msg = MSG
-    msg_id = pgmq.send(queue_name, msg)
-    msg_read = pgmq.read(queue_name, vt=10)
-    assert msg_read.msg_id == msg_id
-    # extend the visibility timeout
-    msg_updated = pgmq.set_vt(queue_name, msg_id, 20)
-    assert msg_updated is not None
-    assert msg_updated.msg_id == msg_id
-
-
-def test_set_vt_not_exist(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
-    pgmq, queue_name = pgmq_setup_teardown
-    msg_updated = pgmq.set_vt(queue_name, 999, 20)
-    assert msg_updated is None
 
 
 # Tests for detach_archive method

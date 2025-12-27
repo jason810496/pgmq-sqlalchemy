@@ -1364,67 +1364,6 @@ class PGMQueue:
             return self.loop.run_until_complete(self._metrics_all_async())
         return self._metrics_all_sync()
 
-    def _set_vt_sync(self, queue_name: str, msg_id: int, vt: int) -> Optional[Message]:
-        """Set the visibility timeout of a message synchronously."""
-        with self.session_maker() as session:
-            row = session.execute(
-                text("select * from pgmq.set_vt(:queue_name, :msg_id, :vt);"),
-                {"queue_name": queue_name, "msg_id": msg_id, "vt": vt},
-            ).fetchone()
-            session.commit()
-        if row is None:
-            return None
-        return Message(
-            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
-        )
-
-    async def _set_vt_async(
-        self, queue_name: str, msg_id: int, vt: int
-    ) -> Optional[Message]:
-        """Set the visibility timeout of a message asynchronously."""
-        async with self.session_maker() as session:
-            row = (
-                await session.execute(
-                    text("select * from pgmq.set_vt(:queue_name, :msg_id, :vt);"),
-                    {"queue_name": queue_name, "msg_id": msg_id, "vt": vt},
-                )
-            ).fetchone()
-            await session.commit()
-        if row is None:
-            return None
-        return Message(
-            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
-        )
-
-    def set_vt(self, queue_name: str, msg_id: int, vt: int) -> Optional[Message]:
-        """
-        Set the visibility timeout of a message.
-
-        Args:
-            queue_name (str): The name of the queue.
-            msg_id (int): The message ID.
-            vt (int): The new visibility timeout in seconds.
-
-        Returns:
-            |schema_message_class|_ or ``None`` if the message does not exist.
-
-        Usage:
-
-        .. code-block:: python
-
-            msg_id = pgmq_client.send('my_queue', {'key': 'value'})
-            msg = pgmq_client.read('my_queue', vt=10)
-            # extend the visibility timeout
-            msg = pgmq_client.set_vt('my_queue', msg_id, 20)
-            assert msg is not None
-
-        """
-        if self.is_async:
-            return self.loop.run_until_complete(
-                self._set_vt_async(queue_name, msg_id, vt)
-            )
-        return self._set_vt_sync(queue_name, msg_id, vt)
-
     def _detach_archive_sync(self, queue_name: str) -> None:
         """Detach the archive table for a queue synchronously."""
         with self.session_maker() as session:
