@@ -162,6 +162,21 @@ def test_send_and_read_msg_with_vt_and_delay(pgmq_setup_teardown: PGMQ_WITH_QUEU
     assert msg_read.msg_id == msg_id
 
 
+def test_send_and_read_msg_with_vt_zero(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
+    """Test that vt=0 works correctly and message becomes visible immediately."""
+    pgmq, queue_name = pgmq_setup_teardown
+    msg = MSG
+    msg_id: int = pgmq.send(queue_name, msg)
+    # Read with vt=0 means message should be immediately visible again
+    msg_read = pgmq.read(queue_name, vt=0)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+    # Message should be visible immediately (no waiting)
+    msg_read = pgmq.read(queue_name)
+    assert msg_read.message == msg
+    assert msg_read.msg_id == msg_id
+
+
 def test_read_empty_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
     msg_read = pgmq.read(queue_name)
