@@ -2,13 +2,13 @@
 
 install: ## Install dependencies and `ruff` pre-commit hooks
 	pre-commit install
-	poetry install --with dev
+	uv sync --extra dev
 
 build: ## Build the package
-	poetry build
+	uv build
 
 test-local: ## Run tests locally
-	poetry run pytest tests --cov=pgmq_sqlalchemy.queue
+	uv run pytest tests --cov=pgmq_sqlalchemy.queue
 
 
 test-docker-rebuild: ## Rebuild the docker image
@@ -38,10 +38,10 @@ exec-db: ## Enter the database container
 	docker compose exec pgmq_postgres psql -U postgres -d postgres
 
 doc-build: ## Build the documentation
-	cd doc && poetry run sphinx-build -nW . _build
+	cd doc && uv run sphinx-build -nW . _build
 
 doc-serve: doc-clean ## Serve the documentation
-	cd doc && poetry run sphinx-autobuild -nW . _build
+	cd doc && uv run sphinx-autobuild -nW . _build
 
 doc-clean: ## Clean the documentation
 	cd doc && rm -r _build
