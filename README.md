@@ -116,10 +116,3 @@ print(metrics.total_messages)
 
 Welcome to open an issue or pull request ! <br>
 See [`Development` on Online Document](https://pgmq-sqlalchemy.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
-
-## TODO 
-
-- [ ] Add **time-based** partition option and validation to `create_partitioned_queue` method.
-- [ ] Read(single/batch) Archive Table ( `read_archive` method )
-- [ ] Detach Archive Table ( `detach_archive` method )
-- [ ] Add `set_vt` utils method.
