@@ -33,30 +33,28 @@ jobs:
             echo "$HOME/.local/bin" >> $GITHUB_PATH
         - name: Install dependencies
           run: uv sync --extra dev
-        - name: Start PostgreSQL with unique database
+        - name: Start PostgreSQL (first time only)
+          run: |
+            # Only start if not already running
+            if ! docker ps | grep -q pgmq_postgres; then
+              cp pgmq_postgres.template.env pgmq_postgres.env
+              cp pgmq_tests.template.env pgmq_tests.env
+              make start-db
+            fi
+        - name: Setup unique database for this test run
           run: |
             # Create unique database name for this combination
             export DB_NAME="pgmq_py${{ matrix.python-version }}_${{ matrix.driver }}"
             export DB_NAME=$(echo $DB_NAME | sed 's/\.//g' | sed 's/-/_/g')
             
-            # Update environment files with unique database name
-            cp pgmq_postgres.template.env pgmq_postgres.env
-            echo "POSTGRES_DB=${DB_NAME}" >> pgmq_postgres.env
-            
-            cp pgmq_tests.template.env pgmq_tests.env
-            echo "SQLALCHEMY_DB=${DB_NAME}" >> pgmq_tests.env
-            
-            # Start PostgreSQL
-            make start-db
-            
             # Create the database
-            docker compose exec -T pgmq_postgres psql -U postgres -c "CREATE DATABASE ${DB_NAME};" || true
-            docker compose exec -T pgmq_postgres psql -U postgres -d ${DB_NAME} -c "CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;" || true
+            docker compose exec -T pgmq_postgres psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" || true
+            docker compose exec -T pgmq_postgres psql -U postgres -c "CREATE DATABASE ${DB_NAME};"
+            docker compose exec -T pgmq_postgres psql -U postgres -d ${DB_NAME} -c "CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;"
         - name: Run tests for specific driver
           run: |
             export DB_NAME="pgmq_py${{ matrix.python-version }}_${{ matrix.driver }}"
             export DB_NAME=$(echo $DB_NAME | sed 's/\.//g' | sed 's/-/_/g')
-            export SQLALCHEMY_DB=${DB_NAME}
             
             uv run pytest tests --driver=${{ matrix.driver }} --db-name=${DB_NAME} --cov=pgmq_sqlalchemy.queue --cov-report=xml
           continue-on-error: true
@@ -70,4 +68,3 @@ jobs:
             export DB_NAME="pgmq_py${{ matrix.python-version }}_${{ matrix.driver }}"
             export DB_NAME=$(echo $DB_NAME | sed 's/\.//g' | sed 's/-/_/g')
             docker compose exec -T pgmq_postgres psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" || true
-            make clear-db || true
