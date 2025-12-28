@@ -29,43 +29,47 @@ def pytest_addoption(parser):
 def pytest_collection_modifyitems(config, items):
     """Modify test collection to skip tests not matching the --driver option."""
     driver_from_cli = config.getoption("--driver")
-    
+
     if not driver_from_cli:
         # No driver specified, run all tests
         return
-    
+
     # Determine if the specified driver is sync or async
     is_async_driver = driver_from_cli in ASYNC_DRIVERS
     is_sync_driver = driver_from_cli in SYNC_DRIVERS
-    
+
     if not is_async_driver and not is_sync_driver:
         # Invalid driver
         return
-    
+
     # Filter out tests that don't match the specified driver
     skip_marker = pytest.mark.skip(reason=f"Test uses different driver (--driver={driver_from_cli} specified)")
-    
+
     for item in items:
         # Parse the test name to extract driver info
         # Format is usually: test_name[fixture_name-driver_name]
         item_id = item.nodeid
-        
-        # Skip async tests if sync driver specified
-        if is_sync_driver and 'async' in item_id.lower():
-            item.add_marker(skip_marker)
-            continue
-        
-        # Skip sync tests if async driver specified  
-        if is_async_driver and 'async' not in item_id.lower():
-            item.add_marker(skip_marker)
-            continue
-        
+
         # Check if the test has a specific driver in its ID
         # Extract driver name from test ID (e.g., test_name[pgmq_by_dsn-psycopg2])
         if '[' in item_id and ']' in item_id:
             # Extract the part between brackets
             bracket_content = item_id[item_id.find('[')+1:item_id.find(']')]
-            
+
+            # Check for async fixtures by name (more precise than string matching)
+            async_fixture_names = ['pgmq_by_async_dsn', 'pgmq_by_async_engine', 'pgmq_by_async_session_maker']
+            is_async_test = any(async_fixture in bracket_content for async_fixture in async_fixture_names)
+
+            # Skip async tests if sync driver specified
+            if is_sync_driver and is_async_test:
+                item.add_marker(skip_marker)
+                continue
+
+            # Skip sync tests if async driver specified
+            if is_async_driver and not is_async_test:
+                item.add_marker(skip_marker)
+                continue
+
             # Check if any known driver is in the bracket content
             # Sort drivers by length (descending) to match longer names first (e.g., psycopg2cffi before psycopg2)
             sorted_drivers = sorted(SYNC_DRIVERS + ASYNC_DRIVERS, key=len, reverse=True)
