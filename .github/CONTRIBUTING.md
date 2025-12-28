@@ -75,6 +75,20 @@ Run tests in local
 make test-local
 ```
 
+Run tests for a specific driver
+```bash
+uv run pytest tests --driver=psycopg2
+```
+
+Run tests with a specific database name
+```bash
+uv run pytest tests --driver=psycopg2 --db-name=custom_db
+```
+
+Available drivers:
+- Sync drivers: `pg8000`, `psycopg2`, `psycopg`, `psycopg2cffi`
+- Async drivers: `asyncpg`
+
 Run tests in docker
 ```bash
 make test-docker

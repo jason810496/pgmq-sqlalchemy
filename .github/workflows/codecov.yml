@@ -1,5 +1,5 @@
 # This workflow will run tests using pytest and upload the coverage report to Codecov
-# Run test with various Python versions
+# Run test with various Python versions and database drivers
 name: Integration Tests
 
 on:
@@ -9,14 +9,18 @@ on:
         branches: [main, develop]
 
 jobs:
-  build:
+  test:
     
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.9","3.10","3.11","3.12"]
+        driver: ["pg8000", "psycopg2", "psycopg", "psycopg2cffi", "asyncpg"]
 
-    name: Test pgmq-sqlalchemy
+    name: Test pgmq-sqlalchemy (Python ${{ matrix.python-version }}, Driver ${{ matrix.driver }})
+    env:
+      # Create unique database name for this combination
+      DB_NAME_RAW: pgmq_py${{ matrix.python-version }}_${{ matrix.driver }}
     steps:
         - uses: actions/checkout@v4
         - name: Set up Python ${{ matrix.python-version }}
@@ -35,10 +39,56 @@ jobs:
             cp pgmq_postgres.template.env pgmq_postgres.env
             cp pgmq_tests.template.env pgmq_tests.env
             make start-db
-        - name: Run tests and collect coverage
-          run: uv run pytest tests --cov=pgmq_sqlalchemy.queue --cov-report=xml -n auto tests
+        - name: Setup unique database for this test run
+          run: |
+            # Normalize database name (remove dots and hyphens)
+            # Note: We normalize in each step because GitHub Actions doesn't support
+            # computed environment variables that can be reused across steps
+            export DB_NAME=$(echo "$DB_NAME_RAW" | sed 's/\.//g' | sed 's/-/_/g')
+
+            # Create the database
+            docker compose exec -T pgmq_postgres psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" || true
+            docker compose exec -T pgmq_postgres psql -U postgres -c "CREATE DATABASE ${DB_NAME};"
+            docker compose exec -T pgmq_postgres psql -U postgres -d ${DB_NAME} -c "CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;"
+        - name: Run tests for specific driver
+          run: |
+            # Normalize database name (remove dots and hyphens)
+            export DB_NAME=$(echo "$DB_NAME_RAW" | sed 's/\.//g' | sed 's/-/_/g')
+
+            # Create unique coverage file name
+            export COVERAGE_FILE=".coverage.py${{ matrix.python-version }}.${{ matrix.driver }}"
+
+            uv run pytest tests --driver=${{ matrix.driver }} --db-name=${DB_NAME} --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-py${{ matrix.python-version }}-${{ matrix.driver }}.xml
           continue-on-error: true
-        - name: Upload coverage reports to Codecov with GitHub Action
+        - name: Upload coverage artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: coverage-py${{ matrix.python-version }}-${{ matrix.driver }}
+            path: coverage-py${{ matrix.python-version }}-${{ matrix.driver }}.xml
+            retention-days: 1
+        - name: Cleanup database
+          if: always()
+          run: |
+            # Normalize database name (remove dots and hyphens)
+            export DB_NAME=$(echo "$DB_NAME_RAW" | sed 's/\.//g' | sed 's/-/_/g')
+            docker compose exec -T pgmq_postgres psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" || true
+
+  upload-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Upload coverage to Codecov
+    steps:
+        - uses: actions/checkout@v4
+        - name: Download all coverage artifacts
+          uses: actions/download-artifact@v4
+          with:
+            path: coverage-reports
+            pattern: coverage-*
+            merge-multiple: true
+        - name: Upload coverage reports to Codecov
           uses: codecov/codecov-action@v4.2.0
+          with:
+            directory: ./coverage-reports
+            fail_ci_if_error: false
           env:
             CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
