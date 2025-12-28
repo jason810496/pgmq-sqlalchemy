@@ -47,6 +47,8 @@ jobs:
         - name: Setup unique database for this test run
           run: |
             # Normalize database name (remove dots and hyphens)
+            # Note: We normalize in each step because GitHub Actions doesn't support
+            # computed environment variables that can be reused across steps
             export DB_NAME=$(echo "$DB_NAME_RAW" | sed 's/\.//g' | sed 's/-/_/g')
 
             # Create the database

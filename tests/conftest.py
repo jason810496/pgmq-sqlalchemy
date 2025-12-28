@@ -9,6 +9,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from pgmq_sqlalchemy import PGMQueue
 from tests.constant import ASYNC_DRIVERS, SYNC_DRIVERS
 
+# Async fixture names for test filtering
+ASYNC_FIXTURE_NAMES = ['pgmq_by_async_dsn', 'pgmq_by_async_engine', 'pgmq_by_async_session_maker']
+
 
 def pytest_addoption(parser):
     """Add custom command-line options for pytest."""
@@ -57,8 +60,7 @@ def pytest_collection_modifyitems(config, items):
             bracket_content = item_id[item_id.find('[')+1:item_id.find(']')]
 
             # Check for async fixtures by name (more precise than string matching)
-            async_fixture_names = ['pgmq_by_async_dsn', 'pgmq_by_async_engine', 'pgmq_by_async_session_maker']
-            is_async_test = any(async_fixture in bracket_content for async_fixture in async_fixture_names)
+            is_async_test = any(async_fixture in bracket_content for async_fixture in ASYNC_FIXTURE_NAMES)
 
             # Skip async tests if sync driver specified
             if is_sync_driver and is_async_test:
