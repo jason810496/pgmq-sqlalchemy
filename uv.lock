@@ -1065,7 +1065,7 @@ requires-dist = [
     { name = "psycopg2-binary", marker = "extra == 'psycopg2-binary'", specifier = ">=2.9.9" },
     { name = "psycopg2cffi", marker = "extra == 'dev'", specifier = ">=2.9.0" },
     { name = "psycopg2cffi", marker = "extra == 'psycopg2cffi'", specifier = ">=2.9.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.4" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.4,<8.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "pytest-lazy-fixture", marker = "extra == 'dev'", specifier = ">=0.6.3" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.6.1" },
