@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 install: ## Install dependencies and `ruff` pre-commit hooks
-	pre-commit install
+	prek install
 	uv sync --extra dev
 
 build: ## Build the package

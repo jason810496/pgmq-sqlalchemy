@@ -844,7 +844,6 @@ class PGMQueue:
                 )
             ).fetchone()
             await session.commit()
-        print("row", row)
         if row is None:
             return None
         return Message(
