@@ -9,7 +9,7 @@ on:
         branches: [main, develop]
 
 jobs:
-  build:
+  test:
     
     runs-on: ubuntu-latest
     strategy:
@@ -34,14 +34,11 @@ jobs:
             echo "$HOME/.local/bin" >> $GITHUB_PATH
         - name: Install dependencies
           run: uv sync --extra dev
-        - name: Start PostgreSQL (first time only)
+        - name: Start PostgreSQL
           run: |
-            # Only start if not already running
-            if ! docker ps | grep -q pgmq_postgres; then
-              cp pgmq_postgres.template.env pgmq_postgres.env
-              cp pgmq_tests.template.env pgmq_tests.env
-              make start-db
-            fi
+            cp pgmq_postgres.template.env pgmq_postgres.env
+            cp pgmq_tests.template.env pgmq_tests.env
+            make start-db
         - name: Setup unique database for this test run
           run: |
             # Normalize database name (remove dots and hyphens)
@@ -58,15 +55,40 @@ jobs:
             # Normalize database name (remove dots and hyphens)
             export DB_NAME=$(echo "$DB_NAME_RAW" | sed 's/\.//g' | sed 's/-/_/g')
 
-            uv run pytest tests --driver=${{ matrix.driver }} --db-name=${DB_NAME} --cov=pgmq_sqlalchemy.queue --cov-report=xml
+            # Create unique coverage file name
+            export COVERAGE_FILE=".coverage.py${{ matrix.python-version }}.${{ matrix.driver }}"
+
+            uv run pytest tests --driver=${{ matrix.driver }} --db-name=${DB_NAME} --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-py${{ matrix.python-version }}-${{ matrix.driver }}.xml
           continue-on-error: true
-        - name: Upload coverage reports to Codecov with GitHub Action
-          uses: codecov/codecov-action@v4.2.0
-          env:
-            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        - name: Upload coverage artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: coverage-py${{ matrix.python-version }}-${{ matrix.driver }}
+            path: coverage-py${{ matrix.python-version }}-${{ matrix.driver }}.xml
+            retention-days: 1
         - name: Cleanup database
           if: always()
           run: |
             # Normalize database name (remove dots and hyphens)
             export DB_NAME=$(echo "$DB_NAME_RAW" | sed 's/\.//g' | sed 's/-/_/g')
             docker compose exec -T pgmq_postgres psql -U postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" || true
+
+  upload-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    name: Upload coverage to Codecov
+    steps:
+        - uses: actions/checkout@v4
+        - name: Download all coverage artifacts
+          uses: actions/download-artifact@v4
+          with:
+            path: coverage-reports
+            pattern: coverage-*
+            merge-multiple: true
+        - name: Upload coverage reports to Codecov
+          uses: codecov/codecov-action@v4.2.0
+          with:
+            directory: ./coverage-reports
+            fail_ci_if_error: false
+          env:
+            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
