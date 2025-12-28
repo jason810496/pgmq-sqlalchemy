@@ -33,12 +33,11 @@ ENV PATH="/root/.local/bin:$PATH"
 
 # copy project requirement files here to ensure they will be cached.
 WORKDIR $PYSETUP_PATH
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
 # install runtime deps
 RUN --mount=type=cache,target=/root/.cache \
-    uv venv $VENV_PATH && \
-    uv pip install --python=$VENV_PATH -e .[dev]
+    uv sync --extra dev
 
 FROM python:3.12-slim-bookworm as runtime
 
