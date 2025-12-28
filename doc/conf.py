@@ -22,7 +22,7 @@ try:
     with open(_pyproject_path, "rb") as f:
         _pyproject_data = tomllib.load(f)
         _version = _pyproject_data["project"]["version"]
-except (FileNotFoundError, KeyError, Exception) as e:
+except (FileNotFoundError, KeyError, OSError) as e:
     # Fallback to a default version if pyproject.toml is missing or invalid
     print(f"Warning: Could not read version from pyproject.toml: {e}")
     _version = "0.0.0"
@@ -41,7 +41,8 @@ copyright = f'2024-{time.strftime("%Y")}, the pgmq-sqlalchemy developers'
 
 # Version information
 # The short X.Y version
-version = ".".join(_version.split(".")[:2])
+_version_parts = _version.split(".")
+version = ".".join(_version_parts[:2]) if len(_version_parts) >= 2 else _version
 # The full version, including alpha/beta/rc tags
 release = _version
 
