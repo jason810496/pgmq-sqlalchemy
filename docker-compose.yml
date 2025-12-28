@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   pgmq_postgres:
     container_name: pgmq_postgres

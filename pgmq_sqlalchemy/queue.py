@@ -814,14 +814,12 @@ class PGMQueue:
             queue_name, vt, qty, max_poll_seconds, poll_interval_ms
         )
 
-    def _set_vt_sync(
-        self, queue_name: str, msg_id: int, vt_offset: int
-    ) -> Optional[Message]:
+    def _set_vt_sync(self, queue_name: str, msg_id: int, vt: int) -> Optional[Message]:
         """Set the visibility timeout for a message."""
         with self.session_maker() as session:
             row = session.execute(
-                text("select * from pgmq.set_vt(:queue_name,:msg_id,:vt_offset);"),
-                {"queue_name": queue_name, "msg_id": msg_id, "vt_offset": vt_offset},
+                text("select * from pgmq.set_vt(:queue_name,:msg_id,:vt);"),
+                {"queue_name": queue_name, "msg_id": msg_id, "vt": vt},
             ).fetchone()
             session.commit()
         if row is None:
@@ -831,17 +829,17 @@ class PGMQueue:
         )
 
     async def _set_vt_async(
-        self, queue_name: str, msg_id: int, vt_offset: int
+        self, queue_name: str, msg_id: int, vt: int
     ) -> Optional[Message]:
         """Set the visibility timeout for a message."""
         async with self.session_maker() as session:
             row = (
                 await session.execute(
-                    text("select * from pgmq.set_vt(:queue_name,:msg_id,:vt_offset);"),
+                    text("select * from pgmq.set_vt(:queue_name,:msg_id,:vt);"),
                     {
                         "queue_name": queue_name,
                         "msg_id": msg_id,
-                        "vt_offset": vt_offset,
+                        "vt": vt,
                     },
                 )
             ).fetchone()
@@ -853,7 +851,7 @@ class PGMQueue:
             msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
         )
 
-    def set_vt(self, queue_name: str, msg_id: int, vt_offset: int) -> Optional[Message]:
+    def set_vt(self, queue_name: str, msg_id: int, vt: int) -> Optional[Message]:
         """
         .. _set_vt_method: ref:`pgmq_sqlalchemy.PGMQueue.set_vt`
         .. |set_vt_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.set_vt`
@@ -863,7 +861,7 @@ class PGMQueue:
         Args:
             queue_name (str): The name of the queue.
             msg_id (int): The message id.
-            vt_offset (int): The visibility timeout in seconds.
+            vt (int): The visibility timeout in seconds.
 
         Returns:
             |schema_message_class|_ or ``None`` if the message does not exist.
@@ -906,15 +904,15 @@ class PGMQueue:
                     pgmq_client.set_vt(
                         queue_name=query_name,
                         msg_id=msg.msg_id,
-                        vt_offset=_exp_backoff_retry(msg)
+                        vt=_exp_backoff_retry(msg)
                     )
 
         """
         if self.is_async:
             return self.loop.run_until_complete(
-                self._set_vt_async(queue_name, msg_id, vt_offset)
+                self._set_vt_async(queue_name, msg_id, vt)
             )
-        return self._set_vt_sync(queue_name, msg_id, vt_offset)
+        return self._set_vt_sync(queue_name, msg_id, vt)
 
     def _pop_sync(self, queue_name: str) -> Optional[Message]:
         with self.session_maker() as session:
