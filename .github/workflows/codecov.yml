@@ -16,8 +16,6 @@ jobs:
       matrix:
         python-version: ["3.9","3.10","3.11","3.12"]
         driver: ["pg8000", "psycopg2", "psycopg", "psycopg2cffi", "asyncpg"]
-      # Run tests sequentially to avoid conflicts
-      max-parallel: 1
 
     name: Test pgmq-sqlalchemy (Python ${{ matrix.python-version }}, Driver ${{ matrix.driver }})
     env:
