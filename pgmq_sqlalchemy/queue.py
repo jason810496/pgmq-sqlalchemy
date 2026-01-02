@@ -1,6 +1,5 @@
 import asyncio
-import re
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -191,35 +190,6 @@ class PGMQueue:
             queue_name, unlogged, session=session, commit=commit
         )
 
-    def _validate_partition_interval(self, interval: Union[int, str]) -> str:
-        """Validate partition interval format.
-
-        Args:
-            interval: Either an integer for numeric partitioning or a string for time-based partitioning
-                     (e.g., '1 day', '1 hour', '7 days')
-
-        Returns:
-            The validated interval as a string
-
-        Raises:
-            ValueError: If the interval format is invalid
-        """
-        if isinstance(interval, int):
-            if interval <= 0:
-                raise ValueError("Numeric partition interval must be positive")
-            return str(interval)
-
-        # Validate time-based interval format
-        # Valid PostgreSQL interval formats: '1 day', '7 days', '1 hour', '1 month', etc.
-        time_pattern = r"^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$"
-        if not re.match(time_pattern, interval.strip(), re.IGNORECASE):
-            raise ValueError(
-                f"Invalid time-based partition interval: '{interval}'. "
-                "Expected format: '<number> <unit>' where unit is one of: "
-                "microsecond, millisecond, second, minute, hour, day, week, month, year"
-            )
-        return interval.strip()
-
     def create_partitioned_queue(
         self,
         queue_name: str,
@@ -263,10 +233,6 @@ class PGMQueue:
         """
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
         self._check_pg_partman_ext()
-
-        # Validate partition intervals
-        partition_interval = self._validate_partition_interval(partition_interval)
-        retention_interval = self._validate_partition_interval(retention_interval)
 
         if self.is_async:
             if session is None:

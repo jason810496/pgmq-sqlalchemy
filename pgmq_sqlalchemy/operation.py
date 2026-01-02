@@ -1,4 +1,5 @@
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Tuple, Dict, Any, Union
+import re
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -27,6 +28,36 @@ class PGMQOperation:
     def _get_check_pg_partman_ext_statement() -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for checking/creating pg_partman extension."""
         return "create extension if not exists pg_partman cascade;", {}
+
+    @staticmethod
+    def _validate_partition_interval(interval: Union[int, str]) -> str:
+        """Validate partition interval format.
+
+        Args:
+            interval: Either an integer for numeric partitioning or a string for time-based partitioning
+                     (e.g., '1 day', '1 hour', '7 days')
+
+        Returns:
+            The validated interval as a string
+
+        Raises:
+            ValueError: If the interval format is invalid
+        """
+        if isinstance(interval, int):
+            if interval <= 0:
+                raise ValueError("Numeric partition interval must be positive")
+            return str(interval)
+
+        # Validate time-based interval format
+        # Valid PostgreSQL interval formats: '1 day', '7 days', '1 hour', '1 month', etc.
+        time_pattern = r"^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$"
+        if not re.match(time_pattern, interval.strip(), re.IGNORECASE):
+            raise ValueError(
+                f"Invalid time-based partition interval: '{interval}'. "
+                "Expected format: '<number> <unit>' where unit is one of: "
+                "microsecond, millisecond, second, minute, hour, day, week, month, year"
+            )
+        return interval.strip()
 
     @staticmethod
     def _get_create_queue_statement(
@@ -349,6 +380,14 @@ class PGMQOperation:
             session: Async SQLAlchemy session.
             commit: Whether to commit the transaction.
         """
+        # Validate partition intervals
+        partition_interval = PGMQOperation._validate_partition_interval(
+            partition_interval
+        )
+        retention_interval = PGMQOperation._validate_partition_interval(
+            retention_interval
+        )
+
         stmt, params = PGMQOperation._get_create_partitioned_queue_statement(
             queue_name, partition_interval, retention_interval
         )
