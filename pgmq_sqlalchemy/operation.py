@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple, Dict, Any, Union
 import re
+import json
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -109,7 +110,6 @@ class PGMQOperation:
         queue_name: str, message: dict, delay: int
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for send."""
-        import json
         return (
             "select * from pgmq.send(:queue_name, :message::jsonb, :delay);",
             {
@@ -124,12 +124,11 @@ class PGMQOperation:
         queue_name: str, messages: List[dict], delay: int
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for send_batch."""
-        import json
         return (
-            "select * from pgmq.send_batch(:queue_name, :messages, :delay);",
+            "select * from pgmq.send_batch(:queue_name, :messages::jsonb, :delay);",
             {
                 "queue_name": queue_name,
-                "messages": [json.dumps(m) for m in messages],
+                "messages": json.dumps(messages),
                 "delay": delay,
             },
         )
