@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .schema import Message, QueueMetrics
-from ._utils import encode_dict_to_psql, encode_list_to_psql
 
 
 class PGMQOperation:
@@ -106,19 +105,33 @@ class PGMQOperation:
         return "select queue_name from pgmq.list_queues();", {}
 
     @staticmethod
-    def _get_send_statement(queue_name: str, message: dict, delay: int) -> str:
-        """Get statement for send (no params, using f-string)."""
-        encoded_message = encode_dict_to_psql(message)
-        return f"select * from pgmq.send('{queue_name}',{encoded_message},{delay});"
+    def _get_send_statement(
+        queue_name: str, message: dict, delay: int
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Get statement and params for send."""
+        import json
+        return (
+            "select * from pgmq.send(:queue_name, :message::jsonb, :delay);",
+            {
+                "queue_name": queue_name,
+                "message": json.dumps(message),
+                "delay": delay,
+            },
+        )
 
     @staticmethod
     def _get_send_batch_statement(
         queue_name: str, messages: List[dict], delay: int
-    ) -> str:
-        """Get statement for send_batch (no params, using f-string)."""
-        encoded_messages = encode_list_to_psql(messages)
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Get statement and params for send_batch."""
+        import json
         return (
-            f"select * from pgmq.send_batch('{queue_name}',{encoded_messages},{delay});"
+            "select * from pgmq.send_batch(:queue_name, :messages, :delay);",
+            {
+                "queue_name": queue_name,
+                "messages": [json.dumps(m) for m in messages],
+                "delay": delay,
+            },
         )
 
     @staticmethod
@@ -546,8 +559,8 @@ class PGMQOperation:
         Returns:
             The message ID.
         """
-        stmt = PGMQOperation._get_send_statement(queue_name, message, delay)
-        row = session.execute(text(stmt)).fetchone()
+        stmt, params = PGMQOperation._get_send_statement(queue_name, message, delay)
+        row = session.execute(text(stmt), params).fetchone()
         if commit:
             session.commit()
         return row[0]
@@ -573,8 +586,8 @@ class PGMQOperation:
         Returns:
             The message ID.
         """
-        stmt = PGMQOperation._get_send_statement(queue_name, message, delay)
-        row = (await session.execute(text(stmt))).fetchone()
+        stmt, params = PGMQOperation._get_send_statement(queue_name, message, delay)
+        row = (await session.execute(text(stmt), params)).fetchone()
         if commit:
             await session.commit()
         return row[0]
@@ -600,8 +613,8 @@ class PGMQOperation:
         Returns:
             List of message IDs.
         """
-        stmt = PGMQOperation._get_send_batch_statement(queue_name, messages, delay)
-        rows = session.execute(text(stmt)).fetchall()
+        stmt, params = PGMQOperation._get_send_batch_statement(queue_name, messages, delay)
+        rows = session.execute(text(stmt), params).fetchall()
         if commit:
             session.commit()
         return [row[0] for row in rows]
@@ -627,8 +640,8 @@ class PGMQOperation:
         Returns:
             List of message IDs.
         """
-        stmt = PGMQOperation._get_send_batch_statement(queue_name, messages, delay)
-        rows = (await session.execute(text(stmt))).fetchall()
+        stmt, params = PGMQOperation._get_send_batch_statement(queue_name, messages, delay)
+        rows = (await session.execute(text(stmt), params)).fetchall()
         if commit:
             await session.commit()
         return [row[0] for row in rows]
@@ -1250,7 +1263,6 @@ class PGMQOperation:
             newest_msg_age_sec=row[2],
             oldest_msg_age_sec=row[3],
             total_messages=row[4],
-            scrape_time=row[5],
         )
 
     @staticmethod
@@ -1282,7 +1294,6 @@ class PGMQOperation:
             newest_msg_age_sec=row[2],
             oldest_msg_age_sec=row[3],
             total_messages=row[4],
-            scrape_time=row[5],
         )
 
     @staticmethod
@@ -1313,7 +1324,6 @@ class PGMQOperation:
                 newest_msg_age_sec=row[2],
                 oldest_msg_age_sec=row[3],
                 total_messages=row[4],
-                scrape_time=row[5],
             )
             for row in rows
         ]
@@ -1346,7 +1356,6 @@ class PGMQOperation:
                 newest_msg_age_sec=row[2],
                 oldest_msg_age_sec=row[3],
                 total_messages=row[4],
-                scrape_time=row[5],
             )
             for row in rows
         ]
