@@ -3,10 +3,11 @@
 This test suite tests the PGMQOperation class methods directly,
 which are transaction-friendly static methods that accept sessions.
 """
+import time
 import uuid
 import pytest
 
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import ProgrammingError, InternalError
 
 from pgmq_sqlalchemy.operation import PGMQOperation
 from pgmq_sqlalchemy.schema import Message, QueueMetrics
@@ -61,7 +62,6 @@ def test_validate_queue_name_sync(get_session_maker):
         PGMQOperation.validate_queue_name(queue_name, session=session, commit=True)
         
         # Should raise for name that's too long (either ProgrammingError or InternalError depending on driver)
-        from sqlalchemy.exc import InternalError
         with pytest.raises((ProgrammingError, InternalError)) as e:
             PGMQOperation.validate_queue_name("a" * 49, session=session, commit=True)
         error_msg = str(e.value.orig) if hasattr(e.value, 'orig') else str(e.value)
@@ -488,7 +488,6 @@ def test_purge_sync(get_session_maker, db_session):
 
 def test_read_with_poll_sync(get_session_maker, db_session):
     """Test reading messages with polling."""
-    import time
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     
     # Create queue
@@ -713,7 +712,6 @@ async def test_purge_async(get_async_session_maker, db_session):
 @pytest.mark.asyncio
 async def test_read_with_poll_async(get_async_session_maker, db_session):
     """Test reading messages with polling asynchronously."""
-    import time
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     
     # Create queue

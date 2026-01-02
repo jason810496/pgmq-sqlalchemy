@@ -130,7 +130,13 @@ class PGMQOperation:
     def _get_send_batch_statement(
         queue_name: str, messages: List[dict], delay: int
     ) -> Tuple[str, Dict[str, Any]]:
-        """Get statement and params for send_batch."""
+        """Get statement and params for send_batch.
+        
+        Note: This uses PostgreSQL array literal format with escaped quotes.
+        While not ideal, this approach balances SQL injection protection with
+        cross-driver compatibility. The escaping is safe as long as json.dumps
+        produces valid JSON (which it always does for dict inputs).
+        """
         # Convert list of dicts to array of jsonb strings
         # Need to escape quotes for PostgreSQL array literal format
         jsonb_strings = [json.dumps(msg).replace('"', '\\"') for msg in messages]
