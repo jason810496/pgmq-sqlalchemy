@@ -141,6 +141,43 @@ class PGMQueue:
             return self.loop.run_until_complete(self._check_pg_partman_ext_async())
         return self._check_pg_partman_ext_sync()
 
+    def _execute_operation(
+        self,
+        op_sync,
+        op_async,
+        session: Optional[SESSION_TYPE],
+        commit: bool,
+        *args,
+        **kwargs
+    ):
+        """Helper method to execute sync or async operations with session management.
+        
+        Args:
+            op_sync: The synchronous operation function from PGMQOperation
+            op_async: The asynchronous operation function from PGMQOperation
+            session: Optional session to use (if None, creates a new one)
+            commit: Whether to commit the transaction
+            *args: Positional arguments to pass to the operation
+            **kwargs: Keyword arguments to pass to the operation
+            
+        Returns:
+            The result from the operation
+        """
+        if self.is_async:
+            if session is None:
+                async def _run():
+                    async with self.session_maker() as s:
+                        return await op_async(*args, session=s, commit=commit, **kwargs)
+                return self.loop.run_until_complete(_run())
+            return self.loop.run_until_complete(
+                op_async(*args, session=session, commit=commit, **kwargs)
+            )
+        
+        if session is None:
+            with self.session_maker() as s:
+                return op_sync(*args, session=s, commit=commit, **kwargs)
+        return op_sync(*args, session=session, commit=commit, **kwargs)
+
     def create_queue(
         self,
         queue_name: str,
@@ -165,29 +202,13 @@ class PGMQueue:
                 pgmq_client.create_queue('my_queue', unlogged=True)
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _create():
-                    async with self.session_maker() as s:
-                        await PGMQOperation.create_queue_async(
-                            queue_name, unlogged, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_create())
-            return self.loop.run_until_complete(
-                PGMQOperation.create_queue_async(
-                    queue_name, unlogged, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.create_queue(
-                    queue_name, unlogged, session=s, commit=commit
-                )
-        return PGMQOperation.create_queue(
-            queue_name, unlogged, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.create_queue,
+            PGMQOperation.create_queue_async,
+            session,
+            commit,
+            queue_name,
+            unlogged,
         )
 
     def create_partitioned_queue(
@@ -234,45 +255,14 @@ class PGMQueue:
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
         self._check_pg_partman_ext()
 
-        if self.is_async:
-            if session is None:
-
-                async def _create():
-                    async with self.session_maker() as s:
-                        await PGMQOperation.create_partitioned_queue_async(
-                            queue_name,
-                            str(partition_interval),
-                            str(retention_interval),
-                            session=s,
-                            commit=commit,
-                        )
-
-                return self.loop.run_until_complete(_create())
-            return self.loop.run_until_complete(
-                PGMQOperation.create_partitioned_queue_async(
-                    queue_name,
-                    str(partition_interval),
-                    str(retention_interval),
-                    session=session,
-                    commit=commit,
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.create_partitioned_queue(
-                    queue_name,
-                    str(partition_interval),
-                    str(retention_interval),
-                    session=s,
-                    commit=commit,
-                )
-        return PGMQOperation.create_partitioned_queue(
+        return self._execute_operation(
+            PGMQOperation.create_partitioned_queue,
+            PGMQOperation.create_partitioned_queue_async,
+            session,
+            commit,
             queue_name,
             str(partition_interval),
             str(retention_interval),
-            session=session,
-            commit=commit,
         )
 
     def validate_queue_name(
@@ -285,29 +275,12 @@ class PGMQueue:
         """
         * Will raise an error if the ``queue_name`` is more than 48 characters.
         """
-        if self.is_async:
-            if session is None:
-
-                async def _validate():
-                    async with self.session_maker() as s:
-                        await PGMQOperation.validate_queue_name_async(
-                            queue_name, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_validate())
-            return self.loop.run_until_complete(
-                PGMQOperation.validate_queue_name_async(
-                    queue_name, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.validate_queue_name(
-                    queue_name, session=s, commit=commit
-                )
-        return PGMQOperation.validate_queue_name(
-            queue_name, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.validate_queue_name,
+            PGMQOperation.validate_queue_name_async,
+            session,
+            commit,
+            queue_name,
         )
 
     def drop_queue(
@@ -339,29 +312,13 @@ class PGMQueue:
         if partitioned:
             self._check_pg_partman_ext()
 
-        if self.is_async:
-            if session is None:
-
-                async def _drop():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.drop_queue_async(
-                            queue, partitioned, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_drop())
-            return self.loop.run_until_complete(
-                PGMQOperation.drop_queue_async(
-                    queue, partitioned, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.drop_queue(
-                    queue, partitioned, session=s, commit=commit
-                )
-        return PGMQOperation.drop_queue(
-            queue, partitioned, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.drop_queue,
+            PGMQOperation.drop_queue_async,
+            session,
+            commit,
+            queue,
+            partitioned,
         )
 
     def list_queues(
@@ -377,24 +334,12 @@ class PGMQueue:
             queue_list = pgmq_client.list_queues()
             print(queue_list)
         """
-        if self.is_async:
-            if session is None:
-
-                async def _list():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.list_queues_async(
-                            session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_list())
-            return self.loop.run_until_complete(
-                PGMQOperation.list_queues_async(session=session, commit=commit)
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.list_queues(session=s, commit=commit)
-        return PGMQOperation.list_queues(session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.list_queues,
+            PGMQOperation.list_queues_async,
+            session,
+            commit,
+        )
 
     def send(
         self,
@@ -423,29 +368,14 @@ class PGMQueue:
             msg = pgmq_client.read('my_queue')
             assert msg is not None
         """
-        if self.is_async:
-            if session is None:
-
-                async def _send():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.send_async(
-                            queue_name, message, delay, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_send())
-            return self.loop.run_until_complete(
-                PGMQOperation.send_async(
-                    queue_name, message, delay, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.send(
-                    queue_name, message, delay, session=s, commit=commit
-                )
-        return PGMQOperation.send(
-            queue_name, message, delay, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.send,
+            PGMQOperation.send_async,
+            session,
+            commit,
+            queue_name,
+            message,
+            delay,
         )
 
     def send_batch(
@@ -469,29 +399,14 @@ class PGMQueue:
             msg_ids = pgmq_client.send_batch('my_queue', msgs, delay=10)
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _send_batch():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.send_batch_async(
-                            queue_name, messages, delay, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_send_batch())
-            return self.loop.run_until_complete(
-                PGMQOperation.send_batch_async(
-                    queue_name, messages, delay, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.send_batch(
-                    queue_name, messages, delay, session=s, commit=commit
-                )
-        return PGMQOperation.send_batch(
-            queue_name, messages, delay, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.send_batch,
+            PGMQOperation.send_batch_async,
+            session,
+            commit,
+            queue_name,
+            messages,
+            delay,
         )
 
     def read(
