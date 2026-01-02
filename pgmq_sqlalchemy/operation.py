@@ -134,8 +134,13 @@ class PGMQOperation:
         
         Note: This uses PostgreSQL array literal format with escaped quotes.
         While not ideal, this approach balances SQL injection protection with
-        cross-driver compatibility. The escaping is safe as long as json.dumps
-        produces valid JSON (which it always does for dict inputs).
+        cross-driver compatibility. The escaping is safe as long as:
+        1. Input is a List[dict] (enforced by type hints)
+        2. json.dumps produces valid JSON (guaranteed for dict inputs)
+        3. Users do not pass pre-serialized JSON strings as dict values
+        
+        A more robust solution would use SQLAlchemy's array types or driver-specific
+        array adaptation, but that would sacrifice cross-driver compatibility.
         """
         # Convert list of dicts to array of jsonb strings
         # Need to escape quotes for PostgreSQL array literal format

@@ -5,8 +5,8 @@ which are transaction-friendly static methods that accept sessions.
 """
 import time
 import uuid
-import pytest
 
+import pytest
 from sqlalchemy.exc import ProgrammingError, InternalError
 
 from pgmq_sqlalchemy.operation import PGMQOperation
