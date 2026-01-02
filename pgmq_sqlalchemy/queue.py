@@ -1,5 +1,6 @@
 import asyncio
-from typing import List, Optional
+import re
+from typing import List, Optional, Union
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -190,6 +191,35 @@ class PGMQueue:
             queue_name, unlogged, session=session, commit=commit
         )
 
+    def _validate_partition_interval(self, interval: Union[int, str]) -> str:
+        """Validate partition interval format.
+
+        Args:
+            interval: Either an integer for numeric partitioning or a string for time-based partitioning
+                     (e.g., '1 day', '1 hour', '7 days')
+
+        Returns:
+            The validated interval as a string
+
+        Raises:
+            ValueError: If the interval format is invalid
+        """
+        if isinstance(interval, int):
+            if interval <= 0:
+                raise ValueError("Numeric partition interval must be positive")
+            return str(interval)
+
+        # Validate time-based interval format
+        # Valid PostgreSQL interval formats: '1 day', '7 days', '1 hour', '1 month', etc.
+        time_pattern = r"^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$"
+        if not re.match(time_pattern, interval.strip(), re.IGNORECASE):
+            raise ValueError(
+                f"Invalid time-based partition interval: '{interval}'. "
+                "Expected format: '<number> <unit>' where unit is one of: "
+                "microsecond, millisecond, second, minute, hour, day, week, month, year"
+            )
+        return interval.strip()
+
     def create_partitioned_queue(
         self,
         queue_name: str,
@@ -206,16 +236,23 @@ class PGMQueue:
 
         .. code-block:: python
 
+                # Numeric partitioning (by msg_id)
                 pgmq_client.create_partitioned_queue('my_partitioned_queue', partition_interval=10000, retention_interval=100000)
+
+                # Time-based partitioning (by enqueued_at)
+                pgmq_client.create_partitioned_queue('my_time_queue', partition_interval='1 day', retention_interval='7 days')
 
         Args:
             queue_name (str): The name of the queue, should be less than 48 characters.
-            partition_interval (int): Will create a new partition every ``partition_interval`` messages.
-            retention_interval (int): The interval for retaining partitions. Any messages that have a `msg_id` less than ``max(msg_id)`` - ``retention_interval`` will be dropped.
+            partition_interval (Union[int, str]): For numeric partitioning, the number of messages per partition.
+                                                   For time-based partitioning, a PostgreSQL interval string (e.g., '1 day', '1 hour').
+            retention_interval (Union[int, str]): For numeric partitioning, messages with msg_id less than max(msg_id) - retention_interval will be dropped.
+                                                   For time-based partitioning, a PostgreSQL interval string (e.g., '7 days').
 
                 .. note::
-                    | Currently, only support for partitioning by **msg_id**.
-                    | Will add **time-based partitioning** in the future ``pgmq-sqlalchemy`` release.
+                    | Supports both **numeric** (by ``msg_id``) and **time-based** (by ``enqueued_at``) partitioning.
+                    | For time-based partitioning, use interval strings like '1 day', '1 hour', '7 days', etc.
+                    | For numeric partitioning, use integer values.
 
         .. important::
             | You must make sure that the ``pg_partman`` extension already **installed** in the Postgres.
@@ -226,6 +263,10 @@ class PGMQueue:
         """
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
         self._check_pg_partman_ext()
+
+        # Validate partition intervals
+        partition_interval = self._validate_partition_interval(partition_interval)
+        retention_interval = self._validate_partition_interval(retention_interval)
 
         if self.is_async:
             if session is None:
