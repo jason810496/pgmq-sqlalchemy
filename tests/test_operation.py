@@ -561,7 +561,7 @@ def test_check_pg_partman_ext_sync(get_session_maker):
 
 def test_create_partitioned_queue_sync(get_session_maker, db_session):
     """Test creating a partitioned queue."""
-    queue_name = f"test_partitioned_{uuid.uuid4().hex}"
+    queue_name = f"part_{uuid.uuid4().hex[:20]}"
     
     # First ensure pg_partman extension is available
     try:
@@ -597,7 +597,7 @@ def test_create_partitioned_queue_sync(get_session_maker, db_session):
 
 def test_create_time_based_partitioned_queue_sync(get_session_maker, db_session):
     """Test creating a time-based partitioned queue."""
-    queue_name = f"test_time_part_{uuid.uuid4().hex}"
+    queue_name = f"time_{uuid.uuid4().hex[:20]}"
     
     # First ensure pg_partman extension is available
     try:
@@ -789,7 +789,7 @@ async def test_check_pg_partman_ext_async(get_async_session_maker):
 @pytest.mark.asyncio
 async def test_create_partitioned_queue_async(get_async_session_maker, db_session):
     """Test creating a partitioned queue asynchronously."""
-    queue_name = f"test_partitioned_{uuid.uuid4().hex}"
+    queue_name = f"part_{uuid.uuid4().hex[:20]}"
     
     # First ensure pg_partman extension is available
     try:

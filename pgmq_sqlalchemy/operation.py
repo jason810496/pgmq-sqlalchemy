@@ -48,6 +48,13 @@ class PGMQOperation:
                 raise ValueError("Numeric partition interval must be positive")
             return str(interval)
 
+        # Check if it's a numeric string
+        if interval.strip().isdigit():
+            numeric_value = int(interval.strip())
+            if numeric_value <= 0:
+                raise ValueError("Numeric partition interval must be positive")
+            return str(numeric_value)
+
         # Validate time-based interval format
         # Valid PostgreSQL interval formats: '1 day', '7 days', '1 hour', '1 month', etc.
         time_pattern = r"^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$"
@@ -111,7 +118,7 @@ class PGMQOperation:
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for send."""
         return (
-            "select * from pgmq.send(:queue_name, :message::jsonb, :delay);",
+            "select * from pgmq.send(:queue_name, CAST(:message AS jsonb), :delay);",
             {
                 "queue_name": queue_name,
                 "message": json.dumps(message),
@@ -125,7 +132,7 @@ class PGMQOperation:
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for send_batch."""
         return (
-            "select * from pgmq.send_batch(:queue_name, :messages::jsonb, :delay);",
+            "select * from pgmq.send_batch(:queue_name, CAST(:messages AS jsonb), :delay);",
             {
                 "queue_name": queue_name,
                 "messages": json.dumps(messages),
@@ -198,7 +205,7 @@ class PGMQOperation:
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for delete_batch."""
         return (
-            "select pgmq.delete(:queue_name, msg_id) from unnest(:msg_ids::bigint[]) as msg_id;",
+            "select msg_id from unnest(CAST(:msg_ids AS bigint[])) as msg_id where pgmq.delete(:queue_name, msg_id);",
             {"queue_name": queue_name, "msg_ids": msg_ids},
         )
 
@@ -218,7 +225,7 @@ class PGMQOperation:
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for archive_batch."""
         return (
-            "select pgmq.archive(:queue_name, msg_id) from unnest(:msg_ids::bigint[]) as msg_id;",
+            "select msg_id from unnest(CAST(:msg_ids AS bigint[])) as msg_id where pgmq.archive(:queue_name, msg_id);",
             {"queue_name": queue_name, "msg_ids": msg_ids},
         )
 
@@ -367,6 +374,14 @@ class PGMQOperation:
             session: SQLAlchemy session.
             commit: Whether to commit the transaction.
         """
+        # Validate partition intervals
+        partition_interval = PGMQOperation._validate_partition_interval(
+            partition_interval
+        )
+        retention_interval = PGMQOperation._validate_partition_interval(
+            retention_interval
+        )
+        
         stmt, params = PGMQOperation._get_create_partitioned_queue_statement(
             queue_name, partition_interval, retention_interval
         )
