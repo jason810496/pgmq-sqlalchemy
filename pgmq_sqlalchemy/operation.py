@@ -131,11 +131,15 @@ class PGMQOperation:
         queue_name: str, messages: List[dict], delay: int
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for send_batch."""
+        # Convert list of dicts to array of jsonb strings
+        # Need to escape quotes for PostgreSQL array literal format
+        jsonb_strings = [json.dumps(msg).replace('"', '\\"') for msg in messages]
+        array_literal = "{" + ",".join(f'"{js}"' for js in jsonb_strings) + "}"
         return (
-            "select * from pgmq.send_batch(:queue_name, CAST(:messages AS jsonb), :delay);",
+            "select * from pgmq.send_batch(:queue_name, CAST(:messages AS jsonb[]), :delay);",
             {
                 "queue_name": queue_name,
-                "messages": json.dumps(messages),
+                "messages": array_literal,
                 "delay": delay,
             },
         )

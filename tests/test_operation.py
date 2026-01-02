@@ -60,8 +60,9 @@ def test_validate_queue_name_sync(get_session_maker):
         # Should not raise for valid name
         PGMQOperation.validate_queue_name(queue_name, session=session, commit=True)
         
-        # Should raise for name that's too long
-        with pytest.raises(ProgrammingError) as e:
+        # Should raise for name that's too long (either ProgrammingError or InternalError depending on driver)
+        from sqlalchemy.exc import InternalError
+        with pytest.raises((ProgrammingError, InternalError)) as e:
             PGMQOperation.validate_queue_name("a" * 49, session=session, commit=True)
         error_msg = str(e.value.orig) if hasattr(e.value, 'orig') else str(e.value)
         assert "queue name is too long" in error_msg
