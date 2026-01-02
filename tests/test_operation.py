@@ -393,3 +393,431 @@ async def test_metrics_async(get_async_session_maker, db_session):
     # Clean up
     async with get_async_session_maker() as session:
         await PGMQOperation.drop_queue_async(queue_name, partitioned=False, session=session, commit=True)
+
+
+def test_delete_batch_sync(get_session_maker, db_session):
+    """Test deleting a batch of messages."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue and send messages
+    with get_session_maker() as session:
+        PGMQOperation.create_queue(queue_name, unlogged=False, session=session, commit=True)
+        msg_id1 = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id2 = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id3 = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_ids = [msg_id1, msg_id2, msg_id3]
+    
+    # Delete batch
+    with get_session_maker() as session:
+        deleted_ids = PGMQOperation.delete_batch(queue_name, msg_ids, session=session, commit=True)
+    
+    assert len(deleted_ids) == 3
+    assert set(deleted_ids) == set(msg_ids)
+    
+    # Verify messages are deleted
+    with get_session_maker() as session:
+        msg = PGMQOperation.read(queue_name, vt=30, session=session, commit=True)
+    
+    assert msg is None
+    
+    # Clean up
+    with get_session_maker() as session:
+        PGMQOperation.drop_queue(queue_name, partitioned=False, session=session, commit=True)
+
+
+def test_archive_batch_sync(get_session_maker, db_session):
+    """Test archiving a batch of messages."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue and send messages
+    with get_session_maker() as session:
+        PGMQOperation.create_queue(queue_name, unlogged=False, session=session, commit=True)
+        msg_id1 = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id2 = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id3 = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_ids = [msg_id1, msg_id2, msg_id3]
+    
+    # Archive batch
+    with get_session_maker() as session:
+        archived_ids = PGMQOperation.archive_batch(queue_name, msg_ids, session=session, commit=True)
+    
+    assert len(archived_ids) == 3
+    assert set(archived_ids) == set(msg_ids)
+    
+    # Verify messages are archived (queue should be empty)
+    with get_session_maker() as session:
+        msg = PGMQOperation.read(queue_name, vt=30, session=session, commit=True)
+    
+    assert msg is None
+    
+    # Clean up
+    with get_session_maker() as session:
+        PGMQOperation.drop_queue(queue_name, partitioned=False, session=session, commit=True)
+
+
+def test_purge_sync(get_session_maker, db_session):
+    """Test purging all messages from a queue."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue and send messages
+    with get_session_maker() as session:
+        PGMQOperation.create_queue(queue_name, unlogged=False, session=session, commit=True)
+        PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+    
+    # Purge queue
+    with get_session_maker() as session:
+        purged_count = PGMQOperation.purge(queue_name, session=session, commit=True)
+    
+    assert purged_count == 5
+    
+    # Verify queue is empty
+    with get_session_maker() as session:
+        msg = PGMQOperation.read(queue_name, vt=30, session=session, commit=True)
+    
+    assert msg is None
+    
+    # Clean up
+    with get_session_maker() as session:
+        PGMQOperation.drop_queue(queue_name, partitioned=False, session=session, commit=True)
+
+
+def test_read_with_poll_sync(get_session_maker, db_session):
+    """Test reading messages with polling."""
+    import time
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue
+    with get_session_maker() as session:
+        PGMQOperation.create_queue(queue_name, unlogged=False, session=session, commit=True)
+    
+    # Test with empty queue - should return None after polling
+    start = time.time()
+    with get_session_maker() as session:
+        msgs = PGMQOperation.read_with_poll(
+            queue_name, vt=30, qty=1, max_poll_seconds=2, poll_interval_ms=100,
+            session=session, commit=True
+        )
+    elapsed = time.time() - start
+    
+    assert msgs is None
+    assert elapsed >= 2  # Should have polled for at least 2 seconds
+    
+    # Send a message and test immediate read
+    with get_session_maker() as session:
+        msg_id = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+    
+    with get_session_maker() as session:
+        msgs = PGMQOperation.read_with_poll(
+            queue_name, vt=30, qty=1, max_poll_seconds=5, poll_interval_ms=100,
+            session=session, commit=True
+        )
+    
+    assert msgs is not None
+    assert len(msgs) == 1
+    assert msgs[0].msg_id == msg_id
+    
+    # Clean up
+    with get_session_maker() as session:
+        PGMQOperation.drop_queue(queue_name, partitioned=False, session=session, commit=True)
+
+
+def test_drop_queue_sync(get_session_maker, db_session):
+    """Test dropping a queue."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue
+    with get_session_maker() as session:
+        PGMQOperation.create_queue(queue_name, unlogged=False, session=session, commit=True)
+    
+    # Verify queue exists
+    assert check_queue_exists(db_session, queue_name) is True
+    
+    # Drop queue
+    with get_session_maker() as session:
+        dropped = PGMQOperation.drop_queue(queue_name, partitioned=False, session=session, commit=True)
+    
+    assert dropped is True
+    
+    # Verify queue is dropped
+    assert check_queue_exists(db_session, queue_name) is False
+
+
+def test_check_pg_partman_ext_sync(get_session_maker):
+    """Test that pg_partman extension check works."""
+    with get_session_maker() as session:
+        # Should not raise any exception
+        # Note: This will only succeed if pg_partman is installed
+        try:
+            PGMQOperation.check_pg_partman_ext(session=session, commit=True)
+        except Exception as e:
+            # If pg_partman is not installed, we expect an error
+            # This is acceptable for this test
+            pytest.skip(f"pg_partman extension not available: {e}")
+
+
+def test_create_partitioned_queue_sync(get_session_maker, db_session):
+    """Test creating a partitioned queue."""
+    queue_name = f"test_partitioned_{uuid.uuid4().hex}"
+    
+    # First ensure pg_partman extension is available
+    try:
+        with get_session_maker() as session:
+            PGMQOperation.check_pg_partman_ext(session=session, commit=True)
+    except Exception as e:
+        pytest.skip(f"pg_partman extension not available: {e}")
+    
+    # Create partitioned queue with numeric partitioning
+    with get_session_maker() as session:
+        PGMQOperation.create_partitioned_queue(
+            queue_name, 
+            partition_interval="10000", 
+            retention_interval="100000",
+            session=session, 
+            commit=True
+        )
+    
+    assert check_queue_exists(db_session, queue_name) is True
+    
+    # Test sending and reading from partitioned queue
+    with get_session_maker() as session:
+        msg_id = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg = PGMQOperation.read(queue_name, vt=30, session=session, commit=True)
+    
+    assert msg is not None
+    assert msg.msg_id == msg_id
+    
+    # Clean up
+    with get_session_maker() as session:
+        PGMQOperation.drop_queue(queue_name, partitioned=True, session=session, commit=True)
+
+
+def test_create_time_based_partitioned_queue_sync(get_session_maker, db_session):
+    """Test creating a time-based partitioned queue."""
+    queue_name = f"test_time_part_{uuid.uuid4().hex}"
+    
+    # First ensure pg_partman extension is available
+    try:
+        with get_session_maker() as session:
+            PGMQOperation.check_pg_partman_ext(session=session, commit=True)
+    except Exception as e:
+        pytest.skip(f"pg_partman extension not available: {e}")
+    
+    # Create partitioned queue with time-based partitioning
+    with get_session_maker() as session:
+        PGMQOperation.create_partitioned_queue(
+            queue_name, 
+            partition_interval="1 day", 
+            retention_interval="7 days",
+            session=session, 
+            commit=True
+        )
+    
+    assert check_queue_exists(db_session, queue_name) is True
+    
+    # Test sending and reading from time-based partitioned queue
+    with get_session_maker() as session:
+        msg_id = PGMQOperation.send(queue_name, MSG, delay=0, session=session, commit=True)
+        msg = PGMQOperation.read(queue_name, vt=30, session=session, commit=True)
+    
+    assert msg is not None
+    assert msg.msg_id == msg_id
+    
+    # Clean up
+    with get_session_maker() as session:
+        PGMQOperation.drop_queue(queue_name, partitioned=True, session=session, commit=True)
+
+
+# Async tests for newly added coverage
+
+
+@pytest.mark.asyncio
+async def test_delete_batch_async(get_async_session_maker, db_session):
+    """Test deleting a batch of messages asynchronously."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue and send messages
+    async with get_async_session_maker() as session:
+        await PGMQOperation.create_queue_async(queue_name, unlogged=False, session=session, commit=True)
+        msg_id1 = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id2 = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id3 = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_ids = [msg_id1, msg_id2, msg_id3]
+    
+    # Delete batch
+    async with get_async_session_maker() as session:
+        deleted_ids = await PGMQOperation.delete_batch_async(queue_name, msg_ids, session=session, commit=True)
+    
+    assert len(deleted_ids) == 3
+    assert set(deleted_ids) == set(msg_ids)
+    
+    # Clean up
+    async with get_async_session_maker() as session:
+        await PGMQOperation.drop_queue_async(queue_name, partitioned=False, session=session, commit=True)
+
+
+@pytest.mark.asyncio
+async def test_archive_batch_async(get_async_session_maker, db_session):
+    """Test archiving a batch of messages asynchronously."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue and send messages
+    async with get_async_session_maker() as session:
+        await PGMQOperation.create_queue_async(queue_name, unlogged=False, session=session, commit=True)
+        msg_id1 = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id2 = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_id3 = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        msg_ids = [msg_id1, msg_id2, msg_id3]
+    
+    # Archive batch
+    async with get_async_session_maker() as session:
+        archived_ids = await PGMQOperation.archive_batch_async(queue_name, msg_ids, session=session, commit=True)
+    
+    assert len(archived_ids) == 3
+    assert set(archived_ids) == set(msg_ids)
+    
+    # Clean up
+    async with get_async_session_maker() as session:
+        await PGMQOperation.drop_queue_async(queue_name, partitioned=False, session=session, commit=True)
+
+
+@pytest.mark.asyncio
+async def test_purge_async(get_async_session_maker, db_session):
+    """Test purging all messages from a queue asynchronously."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue and send messages
+    async with get_async_session_maker() as session:
+        await PGMQOperation.create_queue_async(queue_name, unlogged=False, session=session, commit=True)
+        await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+    
+    # Purge queue
+    async with get_async_session_maker() as session:
+        purged_count = await PGMQOperation.purge_async(queue_name, session=session, commit=True)
+    
+    assert purged_count == 5
+    
+    # Clean up
+    async with get_async_session_maker() as session:
+        await PGMQOperation.drop_queue_async(queue_name, partitioned=False, session=session, commit=True)
+
+
+@pytest.mark.asyncio
+async def test_read_with_poll_async(get_async_session_maker, db_session):
+    """Test reading messages with polling asynchronously."""
+    import time
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue
+    async with get_async_session_maker() as session:
+        await PGMQOperation.create_queue_async(queue_name, unlogged=False, session=session, commit=True)
+    
+    # Test with empty queue - should return None after polling
+    start = time.time()
+    async with get_async_session_maker() as session:
+        msgs = await PGMQOperation.read_with_poll_async(
+            queue_name, vt=30, qty=1, max_poll_seconds=2, poll_interval_ms=100,
+            session=session, commit=True
+        )
+    elapsed = time.time() - start
+    
+    assert msgs is None
+    assert elapsed >= 2  # Should have polled for at least 2 seconds
+    
+    # Send a message and test immediate read
+    async with get_async_session_maker() as session:
+        msg_id = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+    
+    async with get_async_session_maker() as session:
+        msgs = await PGMQOperation.read_with_poll_async(
+            queue_name, vt=30, qty=1, max_poll_seconds=5, poll_interval_ms=100,
+            session=session, commit=True
+        )
+    
+    assert msgs is not None
+    assert len(msgs) == 1
+    assert msgs[0].msg_id == msg_id
+    
+    # Clean up
+    async with get_async_session_maker() as session:
+        await PGMQOperation.drop_queue_async(queue_name, partitioned=False, session=session, commit=True)
+
+
+@pytest.mark.asyncio
+async def test_drop_queue_async(get_async_session_maker, db_session):
+    """Test dropping a queue asynchronously."""
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Create queue
+    async with get_async_session_maker() as session:
+        await PGMQOperation.create_queue_async(queue_name, unlogged=False, session=session, commit=True)
+    
+    # Verify queue exists
+    assert check_queue_exists(db_session, queue_name) is True
+    
+    # Drop queue
+    async with get_async_session_maker() as session:
+        dropped = await PGMQOperation.drop_queue_async(queue_name, partitioned=False, session=session, commit=True)
+    
+    assert dropped is True
+    
+    # Verify queue is dropped
+    assert check_queue_exists(db_session, queue_name) is False
+
+
+@pytest.mark.asyncio
+async def test_check_pg_partman_ext_async(get_async_session_maker):
+    """Test that pg_partman extension check works asynchronously."""
+    async with get_async_session_maker() as session:
+        # Should not raise any exception
+        # Note: This will only succeed if pg_partman is installed
+        try:
+            await PGMQOperation.check_pg_partman_ext_async(session=session, commit=True)
+        except Exception as e:
+            # If pg_partman is not installed, we expect an error
+            # This is acceptable for this test
+            pytest.skip(f"pg_partman extension not available: {e}")
+
+
+@pytest.mark.asyncio
+async def test_create_partitioned_queue_async(get_async_session_maker, db_session):
+    """Test creating a partitioned queue asynchronously."""
+    queue_name = f"test_partitioned_{uuid.uuid4().hex}"
+    
+    # First ensure pg_partman extension is available
+    try:
+        async with get_async_session_maker() as session:
+            await PGMQOperation.check_pg_partman_ext_async(session=session, commit=True)
+    except Exception as e:
+        pytest.skip(f"pg_partman extension not available: {e}")
+    
+    # Create partitioned queue with numeric partitioning
+    async with get_async_session_maker() as session:
+        await PGMQOperation.create_partitioned_queue_async(
+            queue_name, 
+            partition_interval="10000", 
+            retention_interval="100000",
+            session=session, 
+            commit=True
+        )
+    
+    assert check_queue_exists(db_session, queue_name) is True
+    
+    # Test sending and reading from partitioned queue
+    async with get_async_session_maker() as session:
+        msg_id = await PGMQOperation.send_async(queue_name, MSG, delay=0, session=session, commit=True)
+        msg = await PGMQOperation.read_async(queue_name, vt=30, session=session, commit=True)
+    
+    assert msg is not None
+    assert msg.msg_id == msg_id
+    
+    # Clean up
+    async with get_async_session_maker() as session:
+        await PGMQOperation.drop_queue_async(queue_name, partitioned=True, session=session, commit=True)
