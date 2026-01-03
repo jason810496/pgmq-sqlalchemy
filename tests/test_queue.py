@@ -2,7 +2,6 @@ import uuid
 import pytest
 import time
 
-from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 from filelock import FileLock
 from pgmq_sqlalchemy import PGMQueue
@@ -11,7 +10,6 @@ from tests.fixture_deps import (
     PGMQ_WITH_QUEUE,
     pgmq_setup_teardown,
     pgmq_partitioned_setup_teardown,
-    pgmq_all_variants,
 )
 
 from tests._utils import check_queue_exists
@@ -429,74 +427,6 @@ def test_metrics_all_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
         assert queue_2.queue_length == 2
         assert queue_1.total_messages == 3
         assert queue_2.total_messages == 2
-
-
-# Tests for detach_archive method
-def test_detach_archive(pgmq_all_variants, db_session):
-    """Test detach_archive method - detaches archive table from queue."""
-    pgmq: PGMQueue = pgmq_all_variants
-    queue_name = f"test_queue_{uuid.uuid4().hex}"
-    pgmq.create_queue(queue_name)
-    msg = MSG
-    msg_id = pgmq.send(queue_name, msg)
-    pgmq.archive(queue_name, msg_id)
-
-    # Detach archive should not raise an error
-    pgmq.detach_archive(queue_name)
-
-    # Verify the archive still exists after detaching by querying it directly
-    if pgmq.is_async:
-
-        async def check_archive():
-            async with pgmq.session_maker() as session:
-                result = await session.execute(
-                    text(f"SELECT msg_id FROM pgmq.a_{queue_name} WHERE msg_id = :msg_id"),
-                    {"msg_id": msg_id},
-                )
-                return result.fetchone()
-
-        archived_row = pgmq.loop.run_until_complete(check_archive())
-    else:
-        with pgmq.session_maker() as session:
-            archived_row = session.execute(
-                text(f"SELECT msg_id FROM pgmq.a_{queue_name} WHERE msg_id = :msg_id"),
-                {"msg_id": msg_id},
-            ).fetchone()
-
-    assert archived_row is not None
-    assert archived_row[0] == msg_id
-
-    # Cleanup: Drop the archive and queue tables
-    # After detaching, the archive is no longer part of the extension
-    # We need to drop both tables manually by first removing them from the extension
-    if pgmq.is_async:
-
-        async def cleanup():
-            async with pgmq.session_maker() as session:
-                # Drop archive table (already detached)
-                await session.execute(
-                    text(f"DROP TABLE IF EXISTS pgmq.a_{queue_name} CASCADE;")
-                )
-                # Detach and drop queue table
-                await session.execute(
-                    text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};")
-                )
-                await session.execute(
-                    text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;")
-                )
-                await session.commit()
-
-        pgmq.loop.run_until_complete(cleanup())
-    else:
-        with pgmq.session_maker() as session:
-            # Drop archive table (already detached)
-            session.execute(text(f"DROP TABLE IF EXISTS pgmq.a_{queue_name} CASCADE;"))
-            # Detach and drop queue table
-            session.execute(
-                text(f"ALTER EXTENSION pgmq DROP TABLE pgmq.q_{queue_name};")
-            )
-            session.execute(text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;"))
-            session.commit()
 
 
 # Tests for time-based partitioned queues

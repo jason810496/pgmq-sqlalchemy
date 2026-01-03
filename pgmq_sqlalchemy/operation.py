@@ -1,8 +1,8 @@
 from typing import List, Optional, Tuple, Dict, Any, Union, TYPE_CHECKING
 import re
 
-from sqlalchemy import text, bindparam
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY, BIGINT, TEXT
+from sqlalchemy import text, bindparam, TEXT
+from sqlalchemy.dialects.postgresql import JSONB, ARRAY, BIGINT
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
