@@ -509,7 +509,7 @@ def test_read_with_poll_without_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 
 def test_execute_operation_with_provided_sync_session(pgmq_by_session_maker, get_session_maker, db_session):
-    """Test _execute_operation with a provided sync session (tests line 181)."""
+    """Test _execute_operation sync path when session is provided."""
     pgmq: PGMQueue = pgmq_by_session_maker
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     
@@ -533,7 +533,7 @@ def test_execute_operation_with_provided_sync_session(pgmq_by_session_maker, get
 
 
 def test_execute_operation_async_with_session_none(pgmq_by_async_dsn, db_session):
-    """Test _execute_operation async path when session is None (tests lines 167-173)."""
+    """Test _execute_operation async path when session is None."""
     pgmq: PGMQueue = pgmq_by_async_dsn
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     
@@ -541,7 +541,7 @@ def test_execute_operation_async_with_session_none(pgmq_by_async_dsn, db_session
     assert pgmq.is_async is True
     
     # When session is None, _execute_operation creates a new async session
-    # and uses loop.run_until_complete with lines 169-172
+    # and uses loop.run_until_complete to execute the operation
     pgmq.create_queue(queue_name)
     msg_id = pgmq.send(queue_name, MSG)
     msg = pgmq.read(queue_name, vt=30)
