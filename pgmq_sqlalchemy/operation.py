@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple, Dict, Any, Union, TYPE_CHECKING
 import re
 
-from sqlalchemy import text, bindparam, TEXT
+from sqlalchemy import text, bindparam
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY, BIGINT
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -130,10 +130,8 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for send."""
         stmt = text(
-            "select * from pgmq.send(:queue_name, :message, :delay);"
-        ).bindparams(
-            bindparam("queue_name", type_=TEXT), bindparam("message", type_=JSONB)
-        )
+            "select * from pgmq.send(:queue_name::text, :message, :delay);"
+        ).bindparams(bindparam("queue_name"), bindparam("message", type_=JSONB))
         return (
             stmt,
             {
@@ -153,9 +151,9 @@ class PGMQOperation:
         cross-driver compatibility and type adaptation.
         """
         stmt = text(
-            "select * from pgmq.send_batch(:queue_name, :messages, :delay);"
+            "select * from pgmq.send_batch(:queue_name::text, :messages, :delay);"
         ).bindparams(
-            bindparam("queue_name", type_=TEXT),
+            bindparam("queue_name"),
             bindparam("messages", type_=ARRAY(JSONB)),
         )
 
@@ -222,9 +220,9 @@ class PGMQOperation:
         queue_name: str, msg_id: int
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete."""
-        stmt = text("select pgmq.delete(:queue_name, :msg_id) as deleted;").bindparams(
-            bindparam("queue_name", type_=TEXT), bindparam("msg_id", type_=BIGINT)
-        )
+        stmt = text(
+            "select pgmq.delete(:queue_name::text, :msg_id) as deleted;"
+        ).bindparams(bindparam("queue_name"), bindparam("msg_id", type_=BIGINT))
 
         return stmt, {
             "queue_name": queue_name,
@@ -237,9 +235,9 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete_batch."""
         stmt = text(
-            "select * from pgmq.delete_batch(:queue_name, :msg_ids);"
+            "select * from pgmq.delete_batch(:queue_name::text, :msg_ids);"
         ).bindparams(
-            bindparam("queue_name", type_=TEXT),
+            bindparam("queue_name"),
             bindparam("msg_ids", type_=ARRAY(BIGINT)),
         )
 
@@ -254,10 +252,8 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for archive."""
         stmt = text(
-            "select pgmq.archive(:queue_name, :msg_id) as archived;"
-        ).bindparams(
-            bindparam("queue_name", type_=TEXT), bindparam("msg_id", type_=BIGINT)
-        )
+            "select pgmq.archive(:queue_name::text, :msg_id) as archived;"
+        ).bindparams(bindparam("queue_name"), bindparam("msg_id", type_=BIGINT))
         return stmt, {
             "queue_name": queue_name,
             "msg_id": msg_id,
@@ -269,9 +265,9 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for archive_batch."""
         stmt = text(
-            "select t.msg_id from unnest(CAST(:msg_ids AS bigint[])) as t(msg_id) where pgmq.archive(:queue_name, t.msg_id);"
+            "select * from pgmq.archive_batch(:queue_name::text, :msg_ids);"
         ).bindparams(
-            bindparam("queue_name", type_=TEXT),
+            bindparam("queue_name"),
             bindparam("msg_ids", type_=ARRAY(BIGINT)),
         )
         return stmt, {
