@@ -148,10 +148,10 @@ class PGMQueue:
         session: Optional[SESSION_TYPE],
         commit: bool,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """Helper method to execute sync or async operations with session management.
-        
+
         Args:
             op_sync: The synchronous operation function from PGMQOperation
             op_async: The asynchronous operation function from PGMQOperation
@@ -159,20 +159,22 @@ class PGMQueue:
             commit: Whether to commit the transaction
             *args: Positional arguments to pass to the operation
             **kwargs: Keyword arguments to pass to the operation
-            
+
         Returns:
             The result from the operation
         """
         if self.is_async:
             if session is None:
+
                 async def _run():
                     async with self.session_maker() as s:
                         return await op_async(*args, session=s, commit=commit, **kwargs)
+
                 return self.loop.run_until_complete(_run())
             return self.loop.run_until_complete(
                 op_async(*args, session=session, commit=commit, **kwargs)
             )
-        
+
         if session is None:
             with self.session_maker() as s:
                 return op_sync(*args, session=s, commit=commit, **kwargs)
@@ -479,24 +481,14 @@ class PGMQueue:
         if vt is None:
             vt = self.vt
 
-        if self.is_async:
-            if session is None:
-
-                async def _read():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.read_async(
-                            queue_name, vt, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_read())
-            return self.loop.run_until_complete(
-                PGMQOperation.read_async(queue_name, vt, session=session, commit=commit)
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.read(queue_name, vt, session=s, commit=commit)
-        return PGMQOperation.read(queue_name, vt, session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.read,
+            PGMQOperation.read_async,
+            session,
+            commit,
+            queue_name,
+            vt,
+        )
 
     def read_batch(
         self,
@@ -526,29 +518,14 @@ class PGMQueue:
         if vt is None:
             vt = self.vt
 
-        if self.is_async:
-            if session is None:
-
-                async def _read_batch():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.read_batch_async(
-                            queue_name, vt, batch_size, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_read_batch())
-            return self.loop.run_until_complete(
-                PGMQOperation.read_batch_async(
-                    queue_name, vt, batch_size, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.read_batch(
-                    queue_name, vt, batch_size, session=s, commit=commit
-                )
-        return PGMQOperation.read_batch(
-            queue_name, vt, batch_size, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.read_batch,
+            PGMQOperation.read_batch_async,
+            session,
+            commit,
+            queue_name,
+            vt,
+            batch_size,
         )
 
     def read_with_poll(
@@ -613,53 +590,16 @@ class PGMQueue:
         if vt is None:
             vt = self.vt
 
-        if self.is_async:
-            if session is None:
-
-                async def _read_with_poll():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.read_with_poll_async(
-                            queue_name,
-                            vt,
-                            qty,
-                            max_poll_seconds,
-                            poll_interval_ms,
-                            session=s,
-                            commit=commit,
-                        )
-
-                return self.loop.run_until_complete(_read_with_poll())
-            return self.loop.run_until_complete(
-                PGMQOperation.read_with_poll_async(
-                    queue_name,
-                    vt,
-                    qty,
-                    max_poll_seconds,
-                    poll_interval_ms,
-                    session=session,
-                    commit=commit,
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.read_with_poll(
-                    queue_name,
-                    vt,
-                    qty,
-                    max_poll_seconds,
-                    poll_interval_ms,
-                    session=s,
-                    commit=commit,
-                )
-        return PGMQOperation.read_with_poll(
+        return self._execute_operation(
+            PGMQOperation.read_with_poll,
+            PGMQOperation.read_with_poll_async,
+            session,
+            commit,
             queue_name,
             vt,
             qty,
             max_poll_seconds,
             poll_interval_ms,
-            session=session,
-            commit=commit,
         )
 
     def set_vt(
@@ -727,29 +667,15 @@ class PGMQueue:
                     )
 
         """
-        if self.is_async:
-            if session is None:
 
-                async def _set_vt():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.set_vt_async(
-                            queue_name, msg_id, vt, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_set_vt())
-            return self.loop.run_until_complete(
-                PGMQOperation.set_vt_async(
-                    queue_name, msg_id, vt, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.set_vt(
-                    queue_name, msg_id, vt, session=s, commit=commit
-                )
-        return PGMQOperation.set_vt(
-            queue_name, msg_id, vt, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.set_vt,
+            PGMQOperation.set_vt_async,
+            session,
+            commit,
+            queue_name,
+            msg_id,
+            vt,
         )
 
     def pop(
@@ -769,24 +695,13 @@ class PGMQueue:
             print(msg.message)
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _pop():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.pop_async(
-                            queue_name, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_pop())
-            return self.loop.run_until_complete(
-                PGMQOperation.pop_async(queue_name, session=session, commit=commit)
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.pop(queue_name, session=s, commit=commit)
-        return PGMQOperation.pop(queue_name, session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.pop,
+            PGMQOperation.pop_async,
+            session,
+            commit,
+            queue_name,
+        )
 
     def delete(
         self,
@@ -813,28 +728,14 @@ class PGMQueue:
             assert not pgmq_client.delete('my_queue', msg_id)
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _delete():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.delete_async(
-                            queue_name, msg_id, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_delete())
-            return self.loop.run_until_complete(
-                PGMQOperation.delete_async(
-                    queue_name, msg_id, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.delete(
-                    queue_name, msg_id, session=s, commit=commit
-                )
-        return PGMQOperation.delete(queue_name, msg_id, session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.delete,
+            PGMQOperation.delete_async,
+            session,
+            commit,
+            queue_name,
+            msg_id,
+        )
 
     def delete_batch(
         self,
@@ -860,29 +761,13 @@ class PGMQueue:
             assert pgmq_client.delete_batch('my_queue', msg_ids) == msg_ids
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _delete_batch():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.delete_batch_async(
-                            queue_name, msg_ids, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_delete_batch())
-            return self.loop.run_until_complete(
-                PGMQOperation.delete_batch_async(
-                    queue_name, msg_ids, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.delete_batch(
-                    queue_name, msg_ids, session=s, commit=commit
-                )
-        return PGMQOperation.delete_batch(
-            queue_name, msg_ids, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.delete_batch,
+            PGMQOperation.delete_batch_async,
+            session,
+            commit,
+            queue_name,
+            msg_ids,
         )
 
     def archive(
@@ -913,28 +798,14 @@ class PGMQueue:
             assert pgmq_client.read('my_queue') is None
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _archive():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.archive_async(
-                            queue_name, msg_id, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_archive())
-            return self.loop.run_until_complete(
-                PGMQOperation.archive_async(
-                    queue_name, msg_id, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.archive(
-                    queue_name, msg_id, session=s, commit=commit
-                )
-        return PGMQOperation.archive(queue_name, msg_id, session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.archive,
+            PGMQOperation.archive_async,
+            session,
+            commit,
+            queue_name,
+            msg_id,
+        )
 
     def archive_batch(
         self,
@@ -957,29 +828,13 @@ class PGMQueue:
             assert pgmq_client.read('my_queue') is None
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _archive_batch():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.archive_batch_async(
-                            queue_name, msg_ids, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_archive_batch())
-            return self.loop.run_until_complete(
-                PGMQOperation.archive_batch_async(
-                    queue_name, msg_ids, session=session, commit=commit
-                )
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.archive_batch(
-                    queue_name, msg_ids, session=s, commit=commit
-                )
-        return PGMQOperation.archive_batch(
-            queue_name, msg_ids, session=session, commit=commit
+        return self._execute_operation(
+            PGMQOperation.archive_batch,
+            PGMQOperation.archive_batch_async,
+            session,
+            commit,
+            queue_name,
+            msg_ids,
         )
 
     def purge(
@@ -1000,24 +855,13 @@ class PGMQueue:
             assert pgmq_client.read('my_queue') is None
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _purge():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.purge_async(
-                            queue_name, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_purge())
-            return self.loop.run_until_complete(
-                PGMQOperation.purge_async(queue_name, session=session, commit=commit)
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.purge(queue_name, session=s, commit=commit)
-        return PGMQOperation.purge(queue_name, session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.purge,
+            PGMQOperation.purge_async,
+            session,
+            commit,
+            queue_name,
+        )
 
     def metrics(
         self,
@@ -1044,24 +888,13 @@ class PGMQueue:
             print(metrics.queue_length)
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _metrics():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.metrics_async(
-                            queue_name, session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_metrics())
-            return self.loop.run_until_complete(
-                PGMQOperation.metrics_async(queue_name, session=session, commit=commit)
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.metrics(queue_name, session=s, commit=commit)
-        return PGMQOperation.metrics(queue_name, session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.metrics,
+            PGMQOperation.metrics_async,
+            session,
+            commit,
+            queue_name,
+        )
 
     def metrics_all(
         self,
@@ -1102,21 +935,9 @@ class PGMQueue:
 
 
         """
-        if self.is_async:
-            if session is None:
-
-                async def _metrics_all():
-                    async with self.session_maker() as s:
-                        return await PGMQOperation.metrics_all_async(
-                            session=s, commit=commit
-                        )
-
-                return self.loop.run_until_complete(_metrics_all())
-            return self.loop.run_until_complete(
-                PGMQOperation.metrics_all_async(session=session, commit=commit)
-            )
-
-        if session is None:
-            with self.session_maker() as s:
-                return PGMQOperation.metrics_all(session=s, commit=commit)
-        return PGMQOperation.metrics_all(session=session, commit=commit)
+        return self._execute_operation(
+            PGMQOperation.metrics_all,
+            PGMQOperation.metrics_all_async,
+            session,
+            commit,
+        )
