@@ -50,12 +50,17 @@ class PGMQOperation:
 
         # Check if it's a numeric string (including negative numbers)
         stripped = interval.strip()
+        is_numeric = False
         try:
             numeric_value = int(stripped)
+            is_numeric = True
             if numeric_value <= 0:
                 raise ValueError("Numeric partition interval must be positive")
             return str(numeric_value)
-        except ValueError:
+        except ValueError as e:
+            # If it was a numeric string but invalid (e.g., negative), re-raise
+            if is_numeric:
+                raise
             # Not a numeric string, continue to time-based validation
             pass
 
