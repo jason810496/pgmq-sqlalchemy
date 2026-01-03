@@ -1,7 +1,8 @@
 from typing import List, Optional, Tuple, Dict, Any, Union
 import re
 
-from sqlalchemy import text
+from sqlalchemy import text, bindparam, ARRAY
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,10 +115,15 @@ class PGMQOperation:
     @staticmethod
     def _get_send_statement(
         queue_name: str, message: dict, delay: int
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> Tuple[text, Dict[str, Any]]:
         """Get statement and params for send."""
+        stmt = text(
+            "select * from pgmq.send(:queue_name, :message, :delay);"
+        ).bindparams(
+            bindparam("message", type_=JSONB)
+        )
         return (
-            "select * from pgmq.send(:queue_name, CAST(:message AS jsonb), :delay);",
+            stmt,
             {
                 "queue_name": queue_name,
                 "message": message,
@@ -128,21 +134,19 @@ class PGMQOperation:
     @staticmethod
     def _get_send_batch_statement(
         queue_name: str, messages: List[dict], delay: int
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> Tuple[text, Dict[str, Any]]:
         """Get statement and params for send_batch.
 
-        Note: This uses PostgreSQL array literal format with escaped quotes.
-        While not ideal, this approach balances SQL injection protection with
-        cross-driver compatibility. The escaping is safe as long as:
-        1. Input is a List[dict] (enforced by type hints)
-        2. json.dumps produces valid JSON (guaranteed for dict inputs)
-        3. Users do not pass pre-serialized JSON strings as dict values
-
-        A more robust solution would use SQLAlchemy's array types or driver-specific
-        array adaptation, but that would sacrifice cross-driver compatibility.
+        Note: This uses SQLAlchemy's bindparam with JSONB array type for proper
+        cross-driver compatibility and type adaptation.
         """
+        stmt = text(
+            "select * from pgmq.send_batch(:queue_name, :messages, :delay);"
+        ).bindparams(
+            bindparam("messages", type_=ARRAY(JSONB))
+        )
         return (
-            "select * from pgmq.send_batch(:queue_name, CAST(:messages AS jsonb[]), :delay);",
+            stmt,
             {
                 "queue_name": queue_name,
                 "messages": messages,
@@ -584,7 +588,7 @@ class PGMQOperation:
             The message ID.
         """
         stmt, params = PGMQOperation._get_send_statement(queue_name, message, delay)
-        row = session.execute(text(stmt), params).fetchone()
+        row = session.execute(stmt, params).fetchone()
         if commit:
             session.commit()
         return row[0]
@@ -611,7 +615,7 @@ class PGMQOperation:
             The message ID.
         """
         stmt, params = PGMQOperation._get_send_statement(queue_name, message, delay)
-        row = (await session.execute(text(stmt), params)).fetchone()
+        row = (await session.execute(stmt, params)).fetchone()
         if commit:
             await session.commit()
         return row[0]
@@ -640,7 +644,7 @@ class PGMQOperation:
         stmt, params = PGMQOperation._get_send_batch_statement(
             queue_name, messages, delay
         )
-        rows = session.execute(text(stmt), params).fetchall()
+        rows = session.execute(stmt, params).fetchall()
         if commit:
             session.commit()
         return [row[0] for row in rows]
@@ -669,7 +673,7 @@ class PGMQOperation:
         stmt, params = PGMQOperation._get_send_batch_statement(
             queue_name, messages, delay
         )
-        rows = (await session.execute(text(stmt), params)).fetchall()
+        rows = (await session.execute(stmt, params)).fetchall()
         if commit:
             await session.commit()
         return [row[0] for row in rows]
