@@ -1,12 +1,15 @@
-from typing import List, Optional, Tuple, Dict, Any, Union
+from typing import List, Optional, Tuple, Dict, Any, Union, TYPE_CHECKING
 import re
 
-from sqlalchemy import text, bindparam, ARRAY
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import text, bindparam
+from sqlalchemy.dialects.postgresql import JSONB, ARRAY, BIGINT
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .schema import Message, QueueMetrics
+
+if TYPE_CHECKING:
+    from sqlalchemy import TextClause
 
 
 class PGMQOperation:
@@ -124,7 +127,7 @@ class PGMQOperation:
     @staticmethod
     def _get_send_statement(
         queue_name: str, message: dict, delay: int
-    ) -> Tuple[text, Dict[str, Any]]:
+    ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for send."""
         stmt = text(
             "select * from pgmq.send(:queue_name, :message, :delay);"
@@ -141,7 +144,7 @@ class PGMQOperation:
     @staticmethod
     def _get_send_batch_statement(
         queue_name: str, messages: List[dict], delay: int
-    ) -> Tuple[text, Dict[str, Any]]:
+    ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for send_batch.
 
         Note: This uses SQLAlchemy's bindparam with JSONB array type for proper
@@ -150,6 +153,7 @@ class PGMQOperation:
         stmt = text(
             "select * from pgmq.send_batch(:queue_name, :messages, :delay);"
         ).bindparams(bindparam("messages", type_=ARRAY(JSONB)))
+
         return (
             stmt,
             {
@@ -211,9 +215,13 @@ class PGMQOperation:
     @staticmethod
     def _get_delete_statement(
         queue_name: str, msg_id: int
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete."""
-        return "select pgmq.delete(:queue_name, :msg_id) as deleted;", {
+        stmt = text("select pgmq.delete(:queue_name, :msg_id) as deleted;").bindparams(
+            bindparam("msg_id", type_=BIGINT)
+        )
+
+        return stmt, {
             "queue_name": queue_name,
             "msg_id": msg_id,
         }
@@ -221,10 +229,14 @@ class PGMQOperation:
     @staticmethod
     def _get_delete_batch_statement(
         queue_name: str, msg_ids: List[int]
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete_batch."""
+        stmt = text(
+            "select * from pgmq.delete_batch(:queue_name, :msg_ids);"
+        ).bindparams(bindparam("msg_ids", type_=ARRAY(BIGINT)))
+
         return (
-            "select t.msg_id from unnest(CAST(:msg_ids AS bigint[])) as t(msg_id) where pgmq.delete(:queue_name, t.msg_id);",
+            stmt,
             {"queue_name": queue_name, "msg_ids": msg_ids},
         )
 
@@ -1045,7 +1057,7 @@ class PGMQOperation:
             True if the message was deleted successfully.
         """
         stmt, params = PGMQOperation._get_delete_statement(queue_name, msg_id)
-        row = session.execute(text(stmt), params).fetchone()
+        row = session.execute(stmt, params).fetchone()
         if commit:
             session.commit()
         return row[0]
@@ -1070,7 +1082,7 @@ class PGMQOperation:
             True if the message was deleted successfully.
         """
         stmt, params = PGMQOperation._get_delete_statement(queue_name, msg_id)
-        row = (await session.execute(text(stmt), params)).fetchone()
+        row = (await session.execute(stmt, params)).fetchone()
         if commit:
             await session.commit()
         return row[0]
@@ -1095,7 +1107,7 @@ class PGMQOperation:
             List of message IDs that were successfully deleted.
         """
         stmt, params = PGMQOperation._get_delete_batch_statement(queue_name, msg_ids)
-        rows = session.execute(text(stmt), params).fetchall()
+        rows = session.execute(stmt, params).fetchall()
         if commit:
             session.commit()
         return [row[0] for row in rows]
@@ -1120,7 +1132,7 @@ class PGMQOperation:
             List of message IDs that were successfully deleted.
         """
         stmt, params = PGMQOperation._get_delete_batch_statement(queue_name, msg_ids)
-        rows = (await session.execute(text(stmt), params)).fetchall()
+        rows = (await session.execute(stmt, params)).fetchall()
         if commit:
             await session.commit()
         return [row[0] for row in rows]
