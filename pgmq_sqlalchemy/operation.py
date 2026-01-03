@@ -1,6 +1,5 @@
 from typing import List, Optional, Tuple, Dict, Any, Union
 import re
-import json
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -121,7 +120,7 @@ class PGMQOperation:
             "select * from pgmq.send(:queue_name, CAST(:message AS jsonb), :delay);",
             {
                 "queue_name": queue_name,
-                "message": json.dumps(message),
+                "message": message,
                 "delay": delay,
             },
         )
@@ -131,26 +130,22 @@ class PGMQOperation:
         queue_name: str, messages: List[dict], delay: int
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for send_batch.
-        
+
         Note: This uses PostgreSQL array literal format with escaped quotes.
         While not ideal, this approach balances SQL injection protection with
         cross-driver compatibility. The escaping is safe as long as:
         1. Input is a List[dict] (enforced by type hints)
         2. json.dumps produces valid JSON (guaranteed for dict inputs)
         3. Users do not pass pre-serialized JSON strings as dict values
-        
+
         A more robust solution would use SQLAlchemy's array types or driver-specific
         array adaptation, but that would sacrifice cross-driver compatibility.
         """
-        # Convert list of dicts to array of jsonb strings
-        # Need to escape quotes for PostgreSQL array literal format
-        jsonb_strings = [json.dumps(msg).replace('"', '\\"') for msg in messages]
-        array_literal = "{" + ",".join(f'"{js}"' for js in jsonb_strings) + "}"
         return (
             "select * from pgmq.send_batch(:queue_name, CAST(:messages AS jsonb[]), :delay);",
             {
                 "queue_name": queue_name,
-                "messages": array_literal,
+                "messages": messages,
                 "delay": delay,
             },
         )
@@ -396,7 +391,7 @@ class PGMQOperation:
         retention_interval = PGMQOperation._validate_partition_interval(
             retention_interval
         )
-        
+
         stmt, params = PGMQOperation._get_create_partitioned_queue_statement(
             queue_name, partition_interval, retention_interval
         )
@@ -642,7 +637,9 @@ class PGMQOperation:
         Returns:
             List of message IDs.
         """
-        stmt, params = PGMQOperation._get_send_batch_statement(queue_name, messages, delay)
+        stmt, params = PGMQOperation._get_send_batch_statement(
+            queue_name, messages, delay
+        )
         rows = session.execute(text(stmt), params).fetchall()
         if commit:
             session.commit()
@@ -669,7 +666,9 @@ class PGMQOperation:
         Returns:
             List of message IDs.
         """
-        stmt, params = PGMQOperation._get_send_batch_statement(queue_name, messages, delay)
+        stmt, params = PGMQOperation._get_send_batch_statement(
+            queue_name, messages, delay
+        )
         rows = (await session.execute(text(stmt), params)).fetchall()
         if commit:
             await session.commit()
