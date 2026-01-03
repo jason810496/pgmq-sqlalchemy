@@ -8,10 +8,10 @@ from filelock import FileLock
 from pgmq_sqlalchemy import PGMQueue
 
 from tests.fixture_deps import (
-    pgmq_deps,
     PGMQ_WITH_QUEUE,
     pgmq_setup_teardown,
     pgmq_partitioned_setup_teardown,
+    pgmq_all_variants,
 )
 
 from tests._utils import check_queue_exists
@@ -23,17 +23,15 @@ use_fixtures = [
 ]
 
 
-@pgmq_deps
-def test_create_queue(pgmq_fixture, db_session):
-    pgmq: PGMQueue = pgmq_fixture
+def test_create_queue(pgmq_all_variants, db_session):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     pgmq.create_queue(queue_name)
     assert check_queue_exists(db_session, queue_name) is True
 
 
-@pgmq_deps
-def test_create_partitioned_queue(pgmq_fixture, db_session):
-    pgmq: PGMQueue = pgmq_fixture
+def test_create_partitioned_queue(pgmq_all_variants, db_session):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     pgmq.create_partitioned_queue(queue_name)
     assert check_queue_exists(db_session, queue_name) is True
@@ -49,9 +47,8 @@ def test_create_same_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE, db_session):
     assert check_queue_exists(db_session, queue_name) is True
 
 
-@pgmq_deps
-def test_validate_queue_name(pgmq_fixture):
-    pgmq: PGMQueue = pgmq_fixture
+def test_validate_queue_name(pgmq_all_variants):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     pgmq.validate_queue_name(queue_name)
     # `queue_name` should be a less than 48 characters
@@ -66,9 +63,8 @@ def test_drop_queue(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pass
 
 
-@pgmq_deps
-def test_drop_non_exist_queue(pgmq_fixture, db_session):
-    pgmq: PGMQueue = pgmq_fixture
+def test_drop_non_exist_queue(pgmq_all_variants, db_session):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     assert check_queue_exists(db_session, queue_name) is False
     with pytest.raises(ProgrammingError):
@@ -80,9 +76,8 @@ def test_drop_partitioned_queue(pgmq_partitioned_setup_teardown: PGMQ_WITH_QUEUE
     pass
 
 
-@pgmq_deps
-def test_drop_non_exist_partitioned_queue(pgmq_fixture, db_session):
-    pgmq: PGMQueue = pgmq_fixture
+def test_drop_non_exist_partitioned_queue(pgmq_all_variants, db_session):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     assert check_queue_exists(db_session, queue_name) is False
     with pytest.raises(ProgrammingError):
@@ -437,10 +432,9 @@ def test_metrics_all_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 
 # Tests for detach_archive method
-@pgmq_deps
-def test_detach_archive(pgmq_fixture, db_session):
+def test_detach_archive(pgmq_all_variants, db_session):
     """Test detach_archive method - detaches archive table from queue."""
-    pgmq: PGMQueue = pgmq_fixture
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     pgmq.create_queue(queue_name)
     msg = MSG
@@ -536,9 +530,8 @@ def test_read_archive_batch_limit(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 
 # Tests for time-based partitioned queues
-@pgmq_deps
-def test_create_time_based_partitioned_queue(pgmq_fixture, db_session):
-    pgmq: PGMQueue = pgmq_fixture
+def test_create_time_based_partitioned_queue(pgmq_all_variants, db_session):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     pgmq.create_partitioned_queue(
         queue_name, partition_interval="1 day", retention_interval="7 days"
@@ -546,11 +539,10 @@ def test_create_time_based_partitioned_queue(pgmq_fixture, db_session):
     assert check_queue_exists(db_session, queue_name) is True
 
 
-@pgmq_deps
 def test_create_time_based_partitioned_queue_various_intervals(
-    pgmq_fixture, db_session
+    pgmq_all_variants, db_session
 ):
-    pgmq: PGMQueue = pgmq_fixture
+    pgmq: PGMQueue = pgmq_all_variants
 
     # Test with hour
     queue_name_hour = f"test_queue_{uuid.uuid4().hex}"
@@ -567,9 +559,8 @@ def test_create_time_based_partitioned_queue_various_intervals(
     assert check_queue_exists(db_session, queue_name_week) is True
 
 
-@pgmq_deps
-def test_create_partitioned_queue_invalid_time_interval(pgmq_fixture):
-    pgmq: PGMQueue = pgmq_fixture
+def test_create_partitioned_queue_invalid_time_interval(pgmq_all_variants):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     with pytest.raises(ValueError) as e:
         pgmq.create_partitioned_queue(
@@ -580,9 +571,8 @@ def test_create_partitioned_queue_invalid_time_interval(pgmq_fixture):
     assert "Invalid time-based partition interval" in str(e.value)
 
 
-@pgmq_deps
-def test_create_partitioned_queue_invalid_numeric_interval(pgmq_fixture):
-    pgmq: PGMQueue = pgmq_fixture
+def test_create_partitioned_queue_invalid_numeric_interval(pgmq_all_variants):
+    pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     with pytest.raises(ValueError) as e:
         pgmq.create_partitioned_queue(
