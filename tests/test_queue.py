@@ -484,6 +484,7 @@ def test_create_partitioned_queue_invalid_numeric_interval(pgmq_all_variants):
 
 def test_read_with_poll_without_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     """Test read_with_poll when vt parameter is not provided (None)."""
+
     pgmq, queue_name = pgmq_setup_teardown
     
     # Set a custom default vt for the pgmq instance
@@ -510,30 +511,40 @@ def test_read_with_poll_without_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
 
 def test_execute_operation_with_provided_sync_session(pgmq_by_session_maker, get_session_maker, db_session):
     """Test _execute_operation sync path when session is provided."""
+
     pgmq: PGMQueue = pgmq_by_session_maker
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     
-    # Create a session to pass to the operation
+    # Create a session to pass to the operations
+    # Using the same session across multiple operations demonstrates
+    # that the sync path with provided session works correctly
     with get_session_maker() as session:
-        # Create queue
+        # Create queue with provided session
         pgmq.create_queue(queue_name, session=session)
         
-        # Send a message with provided session
+        # Verify queue was created
+        assert check_queue_exists(db_session, queue_name) is True
+        
+        # Send a message with the same provided session
         msg_id = pgmq.send(queue_name, MSG, session=session)
         
-        # Read message with provided session
+        # Read message with the same provided session
         msg = pgmq.read(queue_name, vt=30, session=session)
         
         assert msg is not None
         assert msg.msg_id == msg_id
         assert msg.message == MSG
         
-        # Clean up
+        # Clean up with the same provided session
         pgmq.drop_queue(queue_name, session=session)
+    
+    # Verify queue was dropped
+    assert check_queue_exists(db_session, queue_name) is False
 
 
 def test_execute_operation_async_with_session_none(pgmq_by_async_dsn, db_session):
     """Test _execute_operation async path when session is None."""
+
     pgmq: PGMQueue = pgmq_by_async_dsn
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     
@@ -552,3 +563,6 @@ def test_execute_operation_async_with_session_none(pgmq_by_async_dsn, db_session
     
     # Clean up
     pgmq.drop_queue(queue_name)
+    
+    # Verify queue was dropped
+    assert check_queue_exists(db_session, queue_name) is False
