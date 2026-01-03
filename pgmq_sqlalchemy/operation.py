@@ -213,7 +213,7 @@ class PGMQOperation:
         queue_name: str, msg_id: int
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for delete."""
-        return "select pgmq.delete(:queue_name, :msg_id);", {
+        return "select pgmq.delete(:queue_name, :msg_id) as deleted;", {
             "queue_name": queue_name,
             "msg_id": msg_id,
         }
@@ -233,7 +233,7 @@ class PGMQOperation:
         queue_name: str, msg_id: int
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for archive."""
-        return "select pgmq.archive(:queue_name, :msg_id);", {
+        return "select pgmq.archive(:queue_name, :msg_id) as archived;", {
             "queue_name": queue_name,
             "msg_id": msg_id,
         }
