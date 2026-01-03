@@ -19,6 +19,10 @@ on:
 jobs:
   test-examples:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
