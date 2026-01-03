@@ -130,7 +130,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for send."""
         stmt = text(
-            "select * from pgmq.send(:queue_name::text, :message, :delay);"
+            "select * from pgmq.send((:queue_name)::text, :message, :delay);"
         ).bindparams(bindparam("queue_name"), bindparam("message", type_=JSONB))
         return (
             stmt,
@@ -151,7 +151,7 @@ class PGMQOperation:
         cross-driver compatibility and type adaptation.
         """
         stmt = text(
-            "select * from pgmq.send_batch(:queue_name::text, :messages, :delay);"
+            "select * from pgmq.send_batch((:queue_name)::text, :messages, :delay);"
         ).bindparams(
             bindparam("queue_name"),
             bindparam("messages", type_=ARRAY(JSONB)),
@@ -221,7 +221,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete."""
         stmt = text(
-            "select pgmq.delete(:queue_name::text, :msg_id) as deleted;"
+            "select pgmq.delete((:queue_name)::text, :msg_id) as deleted;"
         ).bindparams(bindparam("queue_name"), bindparam("msg_id", type_=BIGINT))
 
         return stmt, {
@@ -235,7 +235,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete_batch."""
         stmt = text(
-            "select * from pgmq.delete_batch(:queue_name::text, :msg_ids);"
+            "select * from pgmq.delete_batch((:queue_name)::text, :msg_ids);"
         ).bindparams(
             bindparam("queue_name"),
             bindparam("msg_ids", type_=ARRAY(BIGINT)),
@@ -252,7 +252,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for archive."""
         stmt = text(
-            "select pgmq.archive(:queue_name::text, :msg_id) as archived;"
+            "select pgmq.archive((:queue_name)::text, :msg_id) as archived;"
         ).bindparams(bindparam("queue_name"), bindparam("msg_id", type_=BIGINT))
         return stmt, {
             "queue_name": queue_name,
@@ -265,7 +265,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for archive_batch."""
         stmt = text(
-            "select * from pgmq.archive_batch(:queue_name::text, :msg_ids);"
+            "select * from pgmq.archive_batch((:queue_name)::text, :msg_ids);"
         ).bindparams(
             bindparam("queue_name"),
             bindparam("msg_ids", type_=ARRAY(BIGINT)),
