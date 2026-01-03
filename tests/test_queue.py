@@ -530,3 +530,25 @@ def test_execute_operation_with_provided_sync_session(pgmq_by_session_maker, get
         
         # Clean up
         pgmq.drop_queue(queue_name, session=session)
+
+
+def test_execute_operation_async_with_session_none(pgmq_by_async_dsn, db_session):
+    """Test _execute_operation async path when session is None (tests lines 167-173)."""
+    pgmq: PGMQueue = pgmq_by_async_dsn
+    queue_name = f"test_queue_{uuid.uuid4().hex}"
+    
+    # Verify this is an async PGMQueue
+    assert pgmq.is_async is True
+    
+    # When session is None, _execute_operation creates a new async session
+    # and uses loop.run_until_complete with lines 169-172
+    pgmq.create_queue(queue_name)
+    msg_id = pgmq.send(queue_name, MSG)
+    msg = pgmq.read(queue_name, vt=30)
+    
+    assert msg is not None
+    assert msg.msg_id == msg_id
+    assert msg.message == MSG
+    
+    # Clean up
+    pgmq.drop_queue(queue_name)
