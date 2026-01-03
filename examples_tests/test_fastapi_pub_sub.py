@@ -109,7 +109,7 @@ def test_create_order(client, sync_database_url, test_queue_name):
     
     with SessionLocal() as session:
         from pgmq_sqlalchemy import op
-        msg = op.read(test_queue_name, session=session, commit=True)
+        msg = op.read(test_queue_name, vt=30, session=session, commit=True)
         
         assert msg is not None
         assert msg.message["order_id"] == data["id"]
@@ -155,8 +155,22 @@ def test_get_nonexistent_order(client):
 async def test_consumer_processing(async_database_url, sync_database_url, test_queue_name):
     """Test the async consumer processing messages."""
     # Create a test order message directly in the queue
-    engine = create_engine(sync_database_url)
-    SessionLocal = sessionmaker(bind=engine)
+    from sqlalchemy import create_engine as sync_create_engine
+    from sqlalchemy.orm import sessionmaker as sync_sessionmaker
+    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    from sqlalchemy.orm import sessionmaker as async_sessionmaker
+    from pgmq_sqlalchemy import op
+    
+    engine = sync_create_engine(sync_database_url)
+    SessionLocal = sync_sessionmaker(bind=engine)
+    
+    # Create the queue first
+    with SessionLocal() as session:
+        op.check_pgmq_ext(session=session, commit=True)
+        try:
+            op.create_queue(test_queue_name, session=session, commit=True)
+        except Exception:
+            pass  # Queue might already exist
     
     test_message = {
         "order_id": 12345,
@@ -169,16 +183,18 @@ async def test_consumer_processing(async_database_url, sync_database_url, test_q
     
     msg_id = None
     with SessionLocal() as session:
-        from pgmq_sqlalchemy import op
         msg_id = op.send(test_queue_name, test_message, session=session, commit=True)
     
     assert msg_id is not None
     
-    # Now test consumer logic by reading and processing
-    pgmq = PGMQueue(dsn=async_database_url)
+    # Now test consumer logic by reading and processing with async operations
+    async_engine = create_async_engine(async_database_url)
+    async_session_maker = async_sessionmaker(bind=async_engine, class_=AsyncSession)
     
-    # Read the message
-    messages = await pgmq.read_batch(test_queue_name, vt=30, batch_size=10)
+    # Read the message using async operations directly
+    async with async_session_maker() as session:
+        messages = await op.read_batch_async(test_queue_name, vt=30, batch_size=10, session=session, commit=True)
+    
     assert len(messages) >= 1
     
     # Find our test message
@@ -193,12 +209,19 @@ async def test_consumer_processing(async_database_url, sync_database_url, test_q
     assert test_msg.message["product_name"] == "Test Product"
     
     # Simulate processing and deletion
-    await pgmq.delete(test_queue_name, test_msg.msg_id)
+    async with async_session_maker() as session:
+        deleted = await op.delete_async(test_queue_name, test_msg.msg_id, session=session, commit=True)
+        assert deleted is True
     
     # Verify message was deleted
-    time.sleep(1)  # Wait a bit for deletion
-    remaining_messages = await pgmq.read_batch(test_queue_name, vt=30, batch_size=100)
+    await asyncio.sleep(1)  # Wait a bit for deletion
+    async with async_session_maker() as session:
+        remaining_messages = await op.read_batch_async(test_queue_name, vt=30, batch_size=100, session=session, commit=True)
     
-    # Our message should not be in the remaining messages
-    for msg in remaining_messages:
-        assert msg.msg_id != test_msg.msg_id
+    # Our message should not be in the remaining messages (if any)
+    if remaining_messages:
+        for msg in remaining_messages:
+            assert msg.msg_id != test_msg.msg_id
+    
+    # Cleanup
+    await async_engine.dispose()
