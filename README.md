@@ -30,6 +30,7 @@ More flexible [PGMQ Postgres extension](https://github.com/tembo-io/pgmq) Python
 - Supports **all postgres DBAPIs supported by sqlalchemy**.
     > e.g. `psycopg`, `psycopg2`, `asyncpg` .. <br>
     > See [SQLAlchemy Postgresql Dialects](https://docs.sqlalhttps://docs.sqlalchemy.org/en/20/dialects/postgresql.html)
+- **Transaction-friendly operations** via the `op` module for combining PGMQ with your business logic in the same transaction.
 
 ## Installation
 
@@ -111,6 +112,46 @@ metrics:QueueMetrics = pgmq.metrics('my_queue')
 print(metrics.queue_length)
 print(metrics.total_messages)
 ```
+
+### Transaction Usage
+
+Use the `op` module to combine PGMQ operations with your business logic in a single transaction:
+
+```python
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+from pgmq_sqlalchemy import op
+
+engine = create_engine('postgresql://postgres:postgres@localhost:5432/postgres')
+SessionLocal = sessionmaker(bind=engine)
+
+with SessionLocal() as session:
+    try:
+        # Create queue
+        op.create_queue('orders_queue', session=session, commit=False)
+        
+        # Insert order into your database
+        session.execute(
+            text("INSERT INTO orders (user_id, total) VALUES (:user_id, :total)"),
+            {"user_id": 123, "total": 99.99}
+        )
+        
+        # Send message to queue
+        op.send(
+            'orders_queue',
+            {'user_id': 123, 'action': 'process_order'},
+            session=session,
+            commit=False
+        )
+        
+        # Commit everything together
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        print(f"Transaction failed: {e}")
+```
+
+> See [Transaction Usage Documentation](https://pgmq-sqlalchemy.readthedocs.io/en/latest/getting-started.html#using-transaction-friendly-operations) for more examples.
 
 ## Issue/ Contributing / Development 
 
