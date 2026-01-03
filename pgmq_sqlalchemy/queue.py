@@ -837,6 +837,77 @@ class PGMQueue:
             msg_ids,
         )
 
+    def read_archive(
+        self,
+        queue_name: str,
+        *,
+        session: Optional[SESSION_TYPE] = None,
+        commit: bool = True,
+    ) -> Optional[Message]:
+        """
+        Read a single message from the archive table.
+
+        Returns:
+            |schema_message_class|_ or ``None`` if the archive is empty.
+
+        Usage:
+
+        .. code-block:: python
+
+            msg_id = pgmq_client.send('my_queue', {'key': 'value'})
+            pgmq_client.archive('my_queue', msg_id)
+            archived_msg = pgmq_client.read_archive('my_queue')
+            print(archived_msg.message)
+
+        """
+        self.validate_queue_name(queue_name)
+        return self._execute_operation(
+            PGMQOperation.read_archive,
+            PGMQOperation.read_archive_async,
+            session,
+            commit,
+            queue_name,
+        )
+
+    def read_archive_batch(
+        self,
+        queue_name: str,
+        batch_size: int = 1,
+        *,
+        session: Optional[SESSION_TYPE] = None,
+        commit: bool = True,
+    ) -> Optional[List[Message]]:
+        """
+        Read multiple messages from the archive table.
+
+        Args:
+            queue_name (str): The name of the queue.
+            batch_size (int): The number of messages to read.
+
+        Returns:
+            List of |schema_message_class|_ or ``None`` if the archive is empty.
+
+        Usage:
+
+        .. code-block:: python
+
+            msg_ids = pgmq_client.send_batch('my_queue', [{'key': 'value'}, {'key': 'value'}])
+            pgmq_client.archive_batch('my_queue', msg_ids)
+            archived_msgs = pgmq_client.read_archive_batch('my_queue', batch_size=10)
+            for msg in archived_msgs:
+                print(msg.message)
+
+        """
+        self.validate_queue_name(queue_name)
+        return self._execute_operation(
+            PGMQOperation.read_archive_batch,
+            PGMQOperation.read_archive_batch_async,
+            session,
+            commit,
+            queue_name,
+            batch_size,
+        )
+
     def purge(
         self,
         queue_name: str,

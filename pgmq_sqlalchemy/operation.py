@@ -48,23 +48,27 @@ class PGMQOperation:
                 raise ValueError("Numeric partition interval must be positive")
             return str(interval)
 
-        # Check if it's a numeric string
-        if interval.strip().isdigit():
-            numeric_value = int(interval.strip())
+        # Check if it's a numeric string (including negative numbers)
+        stripped = interval.strip()
+        try:
+            numeric_value = int(stripped)
             if numeric_value <= 0:
                 raise ValueError("Numeric partition interval must be positive")
             return str(numeric_value)
+        except ValueError:
+            # Not a numeric string, continue to time-based validation
+            pass
 
         # Validate time-based interval format
         # Valid PostgreSQL interval formats: '1 day', '7 days', '1 hour', '1 month', etc.
         time_pattern = r"^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$"
-        if not re.match(time_pattern, interval.strip(), re.IGNORECASE):
+        if not re.match(time_pattern, stripped, re.IGNORECASE):
             raise ValueError(
                 f"Invalid time-based partition interval: '{interval}'. "
                 "Expected format: '<number> <unit>' where unit is one of: "
                 "microsecond, millisecond, second, minute, hour, day, week, month, year"
             )
-        return interval.strip()
+        return stripped
 
     @staticmethod
     def _get_create_queue_statement(
@@ -241,6 +245,24 @@ class PGMQOperation:
         return (
             "select msg_id from unnest(CAST(:msg_ids AS bigint[])) as msg_id where pgmq.archive(:queue_name, msg_id);",
             {"queue_name": queue_name, "msg_ids": msg_ids},
+        )
+
+    @staticmethod
+    def _get_read_archive_statement(queue_name: str) -> Tuple[str, Dict[str, Any]]:
+        """Get statement and params for read_archive."""
+        return (
+            f"select msg_id, read_ct, enqueued_at, vt, message from pgmq.a_{queue_name} limit 1;",
+            {},
+        )
+
+    @staticmethod
+    def _get_read_archive_batch_statement(
+        queue_name: str, batch_size: int
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Get statement and params for read_archive_batch."""
+        return (
+            f"select msg_id, read_ct, enqueued_at, vt, message from pgmq.a_{queue_name} limit :batch_size;",
+            {"batch_size": batch_size},
         )
 
     @staticmethod
@@ -1219,6 +1241,136 @@ class PGMQOperation:
         if commit:
             await session.commit()
         return [row[0] for row in rows]
+
+    @staticmethod
+    def read_archive(
+        queue_name: str,
+        *,
+        session: Session,
+        commit: bool = True,
+    ) -> Optional[Message]:
+        """Read a single message from the archive table.
+
+        Args:
+            queue_name: The name of the queue.
+            session: SQLAlchemy session.
+            commit: Whether to commit the transaction.
+
+        Returns:
+            Message or None if the archive is empty.
+        """
+        stmt, params = PGMQOperation._get_read_archive_statement(queue_name)
+        row = session.execute(text(stmt), params).fetchone()
+        if commit:
+            session.commit()
+        if row is None:
+            return None
+        return Message(
+            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
+        )
+
+    @staticmethod
+    async def read_archive_async(
+        queue_name: str,
+        *,
+        session: AsyncSession,
+        commit: bool = True,
+    ) -> Optional[Message]:
+        """Read a single message from the archive table asynchronously.
+
+        Args:
+            queue_name: The name of the queue.
+            session: Async SQLAlchemy session.
+            commit: Whether to commit the transaction.
+
+        Returns:
+            Message or None if the archive is empty.
+        """
+        stmt, params = PGMQOperation._get_read_archive_statement(queue_name)
+        row = (await session.execute(text(stmt), params)).fetchone()
+        if commit:
+            await session.commit()
+        if row is None:
+            return None
+        return Message(
+            msg_id=row[0], read_ct=row[1], enqueued_at=row[2], vt=row[3], message=row[4]
+        )
+
+    @staticmethod
+    def read_archive_batch(
+        queue_name: str,
+        batch_size: int = 1,
+        *,
+        session: Session,
+        commit: bool = True,
+    ) -> Optional[List[Message]]:
+        """Read multiple messages from the archive table.
+
+        Args:
+            queue_name: The name of the queue.
+            batch_size: Number of messages to read.
+            session: SQLAlchemy session.
+            commit: Whether to commit the transaction.
+
+        Returns:
+            List of messages or None if the archive is empty.
+        """
+        stmt, params = PGMQOperation._get_read_archive_batch_statement(
+            queue_name, batch_size
+        )
+        rows = session.execute(text(stmt), params).fetchall()
+        if commit:
+            session.commit()
+        if not rows:
+            return None
+        return [
+            Message(
+                msg_id=row[0],
+                read_ct=row[1],
+                enqueued_at=row[2],
+                vt=row[3],
+                message=row[4],
+            )
+            for row in rows
+        ]
+
+    @staticmethod
+    async def read_archive_batch_async(
+        queue_name: str,
+        batch_size: int = 1,
+        *,
+        session: AsyncSession,
+        commit: bool = True,
+    ) -> Optional[List[Message]]:
+        """Read multiple messages from the archive table asynchronously.
+
+        Args:
+            queue_name: The name of the queue.
+            batch_size: Number of messages to read.
+            session: Async SQLAlchemy session.
+            commit: Whether to commit the transaction.
+
+        Returns:
+            List of messages or None if the archive is empty.
+        """
+        stmt, params = PGMQOperation._get_read_archive_batch_statement(
+            queue_name, batch_size
+        )
+        rows = (await session.execute(text(stmt), params)).fetchall()
+        if commit:
+            await session.commit()
+        if not rows:
+            return None
+        return [
+            Message(
+                msg_id=row[0],
+                read_ct=row[1],
+                enqueued_at=row[2],
+                vt=row[3],
+                message=row[4],
+            )
+            for row in rows
+        ]
 
     @staticmethod
     def purge(
