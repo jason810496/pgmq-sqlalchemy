@@ -60,13 +60,16 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
         batch_size: Number of messages to read in each batch
         vt: Visibility timeout in seconds
     """
+    from pgmq_sqlalchemy import op
+    
     logger.info(f"Starting consumer for queue: {QUEUE_NAME}")
     logger.info(f"Batch size: {batch_size}, Visibility timeout: {vt}s")
     
     while True:
         try:
             # Read a batch of messages
-            messages = await pgmq.read_batch(QUEUE_NAME, vt=vt, batch_size=batch_size)
+            async with pgmq.session_maker() as session:
+                messages = await op.read_batch_async(QUEUE_NAME, vt=vt, batch_size=batch_size, session=session, commit=True)
             
             if not messages:
                 logger.debug("No messages available, waiting...")
@@ -87,7 +90,8 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
             # Delete successfully processed messages
             for (msg_id, _), result in zip(tasks, results):
                 if isinstance(result, bool) and result:
-                    await pgmq.delete(QUEUE_NAME, msg_id)
+                    async with pgmq.session_maker() as session:
+                        await op.delete_async(QUEUE_NAME, msg_id, session=session, commit=True)
                     logger.info(f"Deleted message {msg_id}")
                 elif isinstance(result, Exception):
                     logger.error(f"Exception processing message {msg_id}: {result}")
@@ -104,14 +108,34 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
 
 async def main():
     """Main entry point for the consumer."""
-    # Initialize PGMQueue with async driver
-    pgmq = PGMQueue(dsn=DATABASE_URL)
+    # Initialize PGMQueue with async session maker
+    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    from sqlalchemy.orm import sessionmaker
+    
+    async_engine = create_async_engine(DATABASE_URL)
+    async_session_maker = sessionmaker(bind=async_engine, class_=AsyncSession)
+    
+    # Create PGMQueue instance manually to avoid event loop issues
+    pgmq = PGMQueue.__new__(PGMQueue)
+    pgmq.engine = async_engine
+    pgmq.session_maker = async_session_maker
+    pgmq.is_async = True
+    pgmq.delay = 0
+    pgmq.vt = 30
+    pgmq.loop = None
+    pgmq.is_pg_partman_ext_checked = True
+    
+    # Check PGMQ extension manually
+    async with async_session_maker() as session:
+        from pgmq_sqlalchemy import op
+        await op.check_pgmq_ext_async(session=session, commit=True)
     
     try:
         # Start consuming messages
         await consume_messages(pgmq, batch_size=10, vt=30)
     finally:
         logger.info("Consumer stopped")
+        await async_engine.dispose()
 
 
 if __name__ == "__main__":
