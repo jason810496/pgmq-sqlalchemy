@@ -29,59 +29,47 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_collection_modifyitems(config, items):
-    """Modify test collection to skip tests not matching the --driver option."""
-    driver_from_cli = config.getoption("--driver")
-
-    if not driver_from_cli:
-        # No driver specified, run all tests
-        return
-
-    # Determine if the specified driver is sync or async
-    is_async_driver = driver_from_cli in ASYNC_DRIVERS
-    is_sync_driver = driver_from_cli in SYNC_DRIVERS
-
-    if not is_async_driver and not is_sync_driver:
-        # Invalid driver
-        return
-
-    # Filter out tests that don't match the specified driver
-    skip_marker = pytest.mark.skip(reason=f"Test uses different driver (--driver={driver_from_cli} specified)")
-
-    for item in items:
-        # Parse the test name to extract driver info
-        # Format is usually: test_name[fixture_name-driver_name]
-        item_id = item.nodeid
-
-        # Check if the test has a specific driver in its ID
-        # Extract driver name from test ID (e.g., test_name[pgmq_by_dsn-psycopg2])
-        if '[' in item_id and ']' in item_id:
-            # Extract the part between brackets
-            bracket_content = item_id[item_id.find('[')+1:item_id.find(']')]
-
-            # Check for async fixtures by name (more precise than string matching)
-            is_async_test = any(async_fixture in bracket_content for async_fixture in ASYNC_FIXTURE_NAMES)
-
-            # Skip async tests if sync driver specified
-            if is_sync_driver and is_async_test:
-                item.add_marker(skip_marker)
-                continue
-
-            # Skip sync tests if async driver specified
-            if is_async_driver and not is_async_test:
-                item.add_marker(skip_marker)
-                continue
-
-            # Check if any known driver is in the bracket content
-            # Sort drivers by length (descending) to match longer names first (e.g., psycopg2cffi before psycopg2)
-            sorted_drivers = sorted(SYNC_DRIVERS + ASYNC_DRIVERS, key=len, reverse=True)
-            for driver in sorted_drivers:
-                if f"-{driver}]" in item_id or f"-{driver}-" in bracket_content:
-                    # This test is for a specific driver
-                    if driver != driver_from_cli:
-                        # Skip if it doesn't match the CLI driver
-                        item.add_marker(skip_marker)
-                    break
+def pytest_generate_tests(metafunc):
+    """
+    Dynamically generate test parametrization based on CLI options.
+    
+    This allows us to parametrize fixtures based on the --driver option.
+    """
+    if "pgmq_all_variants" in metafunc.fixturenames:
+        driver_from_cli = metafunc.config.getoption("--driver")
+        
+        # Define sync and async fixture variants
+        sync_fixtures = [
+            'pgmq_by_dsn',
+            'pgmq_by_engine',
+            'pgmq_by_session_maker',
+            'pgmq_by_dsn_and_engine',
+            'pgmq_by_dsn_and_session_maker',
+        ]
+        
+        async_fixtures = [
+            'pgmq_by_async_dsn',
+            'pgmq_by_async_engine',
+            'pgmq_by_async_session_maker',
+        ]
+        
+        # Determine which fixtures to use
+        if not driver_from_cli:
+            # No driver specified, use all fixtures
+            fixture_params = sync_fixtures + async_fixtures
+        elif driver_from_cli in ASYNC_DRIVERS:
+            # Async driver specified
+            fixture_params = async_fixtures
+        else:
+            # Sync driver specified
+            fixture_params = sync_fixtures
+        
+        # Parametrize the test
+        metafunc.parametrize(
+            "pgmq_all_variants",
+            fixture_params,
+            indirect=True
+        )
 
 
 @pytest.fixture(scope="module")
@@ -113,7 +101,7 @@ def get_sa_db(request):
     return os.getenv("SQLALCHEMY_DB", "postgres")
 
 
-@pytest.fixture(scope="function", params=SYNC_DRIVERS)
+@pytest.fixture(scope="function")
 def get_dsn(
     request: FixtureRequest,
     get_sa_host,
@@ -122,19 +110,20 @@ def get_dsn(
     get_sa_password,
     get_sa_db,
 ):
-    """Get DSN for sync drivers."""
+    """Get DSN for sync drivers based on CLI option."""
     driver_from_cli = request.config.getoption("--driver")
     
-    # Use CLI driver if specified, otherwise use parametrized driver
+    # Use CLI driver if specified and it's a sync driver
     if driver_from_cli and driver_from_cli in SYNC_DRIVERS:
         driver = driver_from_cli
     else:
-        driver = request.param
+        # Default to first sync driver if no CLI option or invalid
+        driver = SYNC_DRIVERS[0]
     
     return f"postgresql+{driver}://{get_sa_user}:{get_sa_password}@{get_sa_host}:{get_sa_port}/{get_sa_db}"
 
 
-@pytest.fixture(scope="function", params=ASYNC_DRIVERS)
+@pytest.fixture(scope="function")
 def get_async_dsn(
     request: FixtureRequest,
     get_sa_host,
@@ -143,14 +132,15 @@ def get_async_dsn(
     get_sa_password,
     get_sa_db,
 ):
-    """Get DSN for async drivers."""
+    """Get DSN for async drivers based on CLI option."""
     driver_from_cli = request.config.getoption("--driver")
     
-    # Use CLI driver if specified, otherwise use parametrized driver
+    # Use CLI driver if specified and it's an async driver
     if driver_from_cli and driver_from_cli in ASYNC_DRIVERS:
         driver = driver_from_cli
     else:
-        driver = request.param
+        # Default to first async driver if no CLI option or invalid
+        driver = ASYNC_DRIVERS[0]
     
     return f"postgresql+{driver}://{get_sa_user}:{get_sa_password}@{get_sa_host}:{get_sa_port}/{get_sa_db}"
 

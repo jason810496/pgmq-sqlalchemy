@@ -1,12 +1,11 @@
 import pytest
 from pgmq_sqlalchemy import PGMQueue
 
-from tests.fixture_deps import pgmq_deps
+from tests.fixture_deps import pgmq_all_variants
 
 
-@pgmq_deps
-def test_construct_pgmq(pgmq_fixture):
-    pgmq: PGMQueue = pgmq_fixture
+def test_construct_pgmq(pgmq_all_variants):
+    pgmq: PGMQueue = pgmq_all_variants
     assert pgmq is not None
 
 
