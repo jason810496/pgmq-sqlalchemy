@@ -1,0 +1,118 @@
+"""Async consumer for processing orders from PGMQ.
+
+This example demonstrates:
+- Using asyncio for asynchronous message processing
+- Using asyncpg driver with PGMQueue
+- Reading and processing messages from PGMQ
+- Deleting messages after successful processing
+"""
+import asyncio
+import logging
+from typing import Optional
+
+from pgmq_sqlalchemy import PGMQueue
+from pgmq_sqlalchemy.schema import Message
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Database configuration
+DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
+QUEUE_NAME = "order_queue"
+
+
+async def process_order(message: Message) -> bool:
+    """Process an order message.
+    
+    Args:
+        message: Message from PGMQ containing order data
+        
+    Returns:
+        True if processing was successful, False otherwise
+    """
+    try:
+        order_data = message.message
+        logger.info(f"Processing order {order_data.get('order_id')}")
+        logger.info(f"  Customer: {order_data.get('customer_name')}")
+        logger.info(f"  Product: {order_data.get('product_name')}")
+        logger.info(f"  Quantity: {order_data.get('quantity')}")
+        logger.info(f"  Price: ${order_data.get('price')}")
+        
+        # Simulate order processing (e.g., inventory check, payment processing, etc.)
+        await asyncio.sleep(1)
+        
+        logger.info(f"Order {order_data.get('order_id')} processed successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error processing order: {e}")
+        return False
+
+
+async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
+    """Continuously consume and process messages from the queue.
+    
+    Args:
+        pgmq: PGMQueue instance
+        batch_size: Number of messages to read in each batch
+        vt: Visibility timeout in seconds
+    """
+    logger.info(f"Starting consumer for queue: {QUEUE_NAME}")
+    logger.info(f"Batch size: {batch_size}, Visibility timeout: {vt}s")
+    
+    while True:
+        try:
+            # Read a batch of messages
+            messages = await pgmq.read_batch(QUEUE_NAME, vt=vt, batch_size=batch_size)
+            
+            if not messages:
+                logger.debug("No messages available, waiting...")
+                await asyncio.sleep(1)
+                continue
+            
+            logger.info(f"Received {len(messages)} messages")
+            
+            # Process messages concurrently
+            tasks = []
+            for message in messages:
+                task = process_order(message)
+                tasks.append((message.msg_id, task))
+            
+            # Wait for all processing to complete
+            results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
+            
+            # Delete successfully processed messages
+            for (msg_id, _), result in zip(tasks, results):
+                if isinstance(result, bool) and result:
+                    await pgmq.delete(QUEUE_NAME, msg_id)
+                    logger.info(f"Deleted message {msg_id}")
+                elif isinstance(result, Exception):
+                    logger.error(f"Exception processing message {msg_id}: {result}")
+                else:
+                    logger.warning(f"Message {msg_id} processing failed, will retry later")
+                    
+        except KeyboardInterrupt:
+            logger.info("Received shutdown signal, stopping consumer...")
+            break
+        except Exception as e:
+            logger.error(f"Error in consumer loop: {e}")
+            await asyncio.sleep(5)
+
+
+async def main():
+    """Main entry point for the consumer."""
+    # Initialize PGMQueue with async driver
+    pgmq = PGMQueue(dsn=DATABASE_URL)
+    
+    try:
+        # Start consuming messages
+        await consume_messages(pgmq, batch_size=10, vt=30)
+    finally:
+        logger.info("Consumer stopped")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
