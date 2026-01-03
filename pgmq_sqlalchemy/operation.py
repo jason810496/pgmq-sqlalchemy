@@ -224,7 +224,7 @@ class PGMQOperation:
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for delete_batch."""
         return (
-            "select msg_id from unnest(CAST(:msg_ids AS bigint[])) as msg_id where pgmq.delete(:queue_name, msg_id);",
+            "select t.msg_id from unnest(CAST(:msg_ids AS bigint[])) as t(msg_id) where pgmq.delete(:queue_name, t.msg_id);",
             {"queue_name": queue_name, "msg_ids": msg_ids},
         )
 
@@ -244,7 +244,7 @@ class PGMQOperation:
     ) -> Tuple[str, Dict[str, Any]]:
         """Get statement and params for archive_batch."""
         return (
-            "select msg_id from unnest(CAST(:msg_ids AS bigint[])) as msg_id where pgmq.archive(:queue_name, msg_id);",
+            "select t.msg_id from unnest(CAST(:msg_ids AS bigint[])) as t(msg_id) where pgmq.archive(:queue_name, t.msg_id);",
             {"queue_name": queue_name, "msg_ids": msg_ids},
         )
 
