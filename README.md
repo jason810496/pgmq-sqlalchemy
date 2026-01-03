@@ -29,7 +29,7 @@ More flexible [PGMQ Postgres extension](https://github.com/tembo-io/pgmq) Python
 - **Automatically** creates `pgmq` (or `pg_partman`) extension on the database if not exists.
 - Supports **all postgres DBAPIs supported by sqlalchemy**.
     > e.g. `psycopg`, `psycopg2`, `asyncpg` .. <br>
-    > See [SQLAlchemy Postgresql Dialects](https://docs.sqlalhttps://docs.sqlalchemy.org/en/20/dialects/postgresql.html)
+    > See [SQLAlchemy Postgresql Dialects](https://docs.sqlalchemy.org/en/20/dialects/postgresql.html)
 - **Transaction-friendly operations** via the `op` module for combining PGMQ with your business logic in the same transaction.
 
 ## Installation
