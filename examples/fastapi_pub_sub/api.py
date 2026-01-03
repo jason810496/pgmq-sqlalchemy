@@ -6,10 +6,10 @@ This example demonstrates:
 - Creating orders and sending them to a message queue
 """
 from typing import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import Session, sessionmaker, declarative_base
 from datetime import datetime
@@ -47,6 +47,8 @@ class OrderCreate(BaseModel):
 
 
 class OrderResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     customer_name: str
     product_name: str
@@ -55,13 +57,32 @@ class OrderResponse(BaseModel):
     created_at: datetime
     message_id: int
 
-    class Config:
-        from_attributes = True
+
+# Lifespan context manager for startup/shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize database tables and PGMQ queue on startup."""
+    # Startup
+    Base.metadata.create_all(bind=engine)
+    
+    # Initialize PGMQ queue
+    with SessionLocal() as session:
+        op.check_pgmq_ext(session=session, commit=True)
+        
+        # Create queue if it doesn't exist
+        try:
+            op.create_queue(QUEUE_NAME, session=session, commit=True)
+        except Exception:
+            # Queue might already exist, which is fine
+            pass
+    
+    yield
+    
+    # Shutdown (if needed)
 
 
-# FastAPI app
-app = FastAPI(title="Order Management with PGMQ")
-
+# FastAPI app with lifespan
+app = FastAPI(title="Order Management with PGMQ", lifespan=lifespan)
 
 # Database dependency
 def get_db() -> Generator[Session, None, None]:
@@ -71,24 +92,6 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
-
-
-@app.on_event("startup")
-def startup_event():
-    """Initialize database tables and PGMQ queue on startup."""
-    # Create tables if they don't exist
-    Base.metadata.create_all(bind=engine)
-    
-    # Initialize PGMQ queue
-    with SessionLocal() as session:
-        op.check_pgmq_ext(session=session, commit=True)
-        
-        # Create queue if it doesn't exist (will not fail if exists)
-        try:
-            op.create_queue(QUEUE_NAME, session=session, commit=True)
-        except Exception:
-            # Queue might already exist, which is fine
-            pass
 
 
 @app.post("/orders", response_model=OrderResponse, status_code=201)

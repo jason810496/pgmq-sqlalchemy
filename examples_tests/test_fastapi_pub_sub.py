@@ -48,8 +48,10 @@ def setup_api_app(sync_database_url, test_queue_name):
         api.op.check_pgmq_ext(session=session, commit=True)
         try:
             api.op.create_queue(test_queue_name, session=session, commit=True)
-        except Exception:
-            pass
+        except Exception as e:
+            # Queue already exists from a previous test run
+            import logging
+            logging.warning(f"Could not create queue (may already exist): {e}")
     
     yield api
     
@@ -58,8 +60,9 @@ def setup_api_app(sync_database_url, test_queue_name):
         # Drop the test queue
         try:
             api.op.drop_queue(test_queue_name, session=session, commit=True)
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.warning(f"Could not drop queue: {e}")
         
         # Drop tables
         session.execute(text("DROP TABLE IF EXISTS orders CASCADE"))
@@ -169,8 +172,10 @@ async def test_consumer_processing(async_database_url, sync_database_url, test_q
         op.check_pgmq_ext(session=session, commit=True)
         try:
             op.create_queue(test_queue_name, session=session, commit=True)
-        except Exception:
-            pass  # Queue might already exist
+        except Exception as e:
+            # Queue already exists from a previous test run
+            import logging
+            logging.warning(f"Could not create queue (may already exist): {e}")
     
     test_message = {
         "order_id": 12345,

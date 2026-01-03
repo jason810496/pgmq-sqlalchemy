@@ -115,7 +115,11 @@ async def main():
     async_engine = create_async_engine(DATABASE_URL)
     async_session_maker = sessionmaker(bind=async_engine, class_=AsyncSession)
     
-    # Create PGMQueue instance manually to avoid event loop issues
+    # Note: Manual PGMQueue setup to avoid event loop conflicts
+    # PGMQueue.__init__ tries to run a nested event loop which conflicts
+    # with asyncio.run(). This is a known limitation when using PGMQueue
+    # in an async context manager like asyncio.run().
+    # For proper usage, consider using PGMQOperation methods directly with sessions.
     pgmq = PGMQueue.__new__(PGMQueue)
     pgmq.engine = async_engine
     pgmq.session_maker = async_session_maker
