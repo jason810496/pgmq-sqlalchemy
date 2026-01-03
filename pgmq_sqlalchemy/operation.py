@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple, Dict, Any, Union, TYPE_CHECKING
 import re
 
 from sqlalchemy import text, bindparam
-from sqlalchemy.dialects.postgresql import JSONB, ARRAY, BIGINT
+from sqlalchemy.dialects.postgresql import JSONB, ARRAY, BIGINT, TEXT
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -131,7 +131,9 @@ class PGMQOperation:
         """Get statement and params for send."""
         stmt = text(
             "select * from pgmq.send(:queue_name, :message, :delay);"
-        ).bindparams(bindparam("message", type_=JSONB))
+        ).bindparams(
+            bindparam("queue_name", type_=TEXT), bindparam("message", type_=JSONB)
+        )
         return (
             stmt,
             {
@@ -152,7 +154,10 @@ class PGMQOperation:
         """
         stmt = text(
             "select * from pgmq.send_batch(:queue_name, :messages, :delay);"
-        ).bindparams(bindparam("messages", type_=ARRAY(JSONB)))
+        ).bindparams(
+            bindparam("queue_name", type_=TEXT),
+            bindparam("messages", type_=ARRAY(JSONB)),
+        )
 
         return (
             stmt,
@@ -218,7 +223,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete."""
         stmt = text("select pgmq.delete(:queue_name, :msg_id) as deleted;").bindparams(
-            bindparam("msg_id", type_=BIGINT)
+            bindparam("queue_name", type_=TEXT), bindparam("msg_id", type_=BIGINT)
         )
 
         return stmt, {
@@ -233,7 +238,10 @@ class PGMQOperation:
         """Get statement and params for delete_batch."""
         stmt = text(
             "select * from pgmq.delete_batch(:queue_name, :msg_ids);"
-        ).bindparams(bindparam("msg_ids", type_=ARRAY(BIGINT)))
+        ).bindparams(
+            bindparam("queue_name", type_=TEXT),
+            bindparam("msg_ids", type_=ARRAY(BIGINT)),
+        )
 
         return (
             stmt,
@@ -243,9 +251,14 @@ class PGMQOperation:
     @staticmethod
     def _get_archive_statement(
         queue_name: str, msg_id: int
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for archive."""
-        return "select pgmq.archive(:queue_name, :msg_id) as archived;", {
+        stmt = text(
+            "select pgmq.archive(:queue_name, :msg_id) as archived;"
+        ).bindparams(
+            bindparam("queue_name", type_=TEXT), bindparam("msg_id", type_=BIGINT)
+        )
+        return stmt, {
             "queue_name": queue_name,
             "msg_id": msg_id,
         }
@@ -253,12 +266,18 @@ class PGMQOperation:
     @staticmethod
     def _get_archive_batch_statement(
         queue_name: str, msg_ids: List[int]
-    ) -> Tuple[str, Dict[str, Any]]:
+    ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for archive_batch."""
-        return (
-            "select t.msg_id from unnest(CAST(:msg_ids AS bigint[])) as t(msg_id) where pgmq.archive(:queue_name, t.msg_id);",
-            {"queue_name": queue_name, "msg_ids": msg_ids},
+        stmt = text(
+            "select t.msg_id from unnest(CAST(:msg_ids AS bigint[])) as t(msg_id) where pgmq.archive(:queue_name, t.msg_id);"
+        ).bindparams(
+            bindparam("queue_name", type_=TEXT),
+            bindparam("msg_ids", type_=ARRAY(BIGINT)),
         )
+        return stmt, {
+            "queue_name": queue_name,
+            "msg_ids": msg_ids,
+        }
 
     @staticmethod
     def _get_purge_statement(queue_name: str) -> Tuple[str, Dict[str, Any]]:
@@ -1157,7 +1176,7 @@ class PGMQOperation:
             True if the message was archived successfully.
         """
         stmt, params = PGMQOperation._get_archive_statement(queue_name, msg_id)
-        row = session.execute(text(stmt), params).fetchone()
+        row = session.execute(stmt, params).fetchone()
         if commit:
             session.commit()
         return row[0]
@@ -1182,7 +1201,7 @@ class PGMQOperation:
             True if the message was archived successfully.
         """
         stmt, params = PGMQOperation._get_archive_statement(queue_name, msg_id)
-        row = (await session.execute(text(stmt), params)).fetchone()
+        row = (await session.execute(stmt, params)).fetchone()
         if commit:
             await session.commit()
         return row[0]
@@ -1207,7 +1226,7 @@ class PGMQOperation:
             List of message IDs that were successfully archived.
         """
         stmt, params = PGMQOperation._get_archive_batch_statement(queue_name, msg_ids)
-        rows = session.execute(text(stmt), params).fetchall()
+        rows = session.execute(stmt, params).fetchall()
         if commit:
             session.commit()
         return [row[0] for row in rows]
@@ -1232,7 +1251,7 @@ class PGMQOperation:
             List of message IDs that were successfully archived.
         """
         stmt, params = PGMQOperation._get_archive_batch_statement(queue_name, msg_ids)
-        rows = (await session.execute(text(stmt), params)).fetchall()
+        rows = (await session.execute(stmt, params)).fetchall()
         if commit:
             await session.commit()
         return [row[0] for row in rows]
