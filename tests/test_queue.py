@@ -8,6 +8,7 @@ from pgmq_sqlalchemy import PGMQueue
 
 from tests.fixture_deps import (
     PGMQ_WITH_QUEUE,
+    pgmq_all_variants,
     pgmq_setup_teardown,
     pgmq_partitioned_setup_teardown,
 )
