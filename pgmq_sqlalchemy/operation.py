@@ -57,7 +57,7 @@ class PGMQOperation:
             if numeric_value <= 0:
                 raise ValueError("Numeric partition interval must be positive")
             return str(numeric_value)
-        except ValueError as e:
+        except ValueError:
             # If it was a numeric string but invalid (e.g., negative), re-raise
             if is_numeric:
                 raise
@@ -128,9 +128,7 @@ class PGMQOperation:
         """Get statement and params for send."""
         stmt = text(
             "select * from pgmq.send(:queue_name, :message, :delay);"
-        ).bindparams(
-            bindparam("message", type_=JSONB)
-        )
+        ).bindparams(bindparam("message", type_=JSONB))
         return (
             stmt,
             {
@@ -151,9 +149,7 @@ class PGMQOperation:
         """
         stmt = text(
             "select * from pgmq.send_batch(:queue_name, :messages, :delay);"
-        ).bindparams(
-            bindparam("messages", type_=ARRAY(JSONB))
-        )
+        ).bindparams(bindparam("messages", type_=ARRAY(JSONB)))
         return (
             stmt,
             {
