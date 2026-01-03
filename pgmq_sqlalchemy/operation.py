@@ -235,7 +235,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for delete_batch."""
         stmt = text(
-            "select * from pgmq.delete_batch((:queue_name)::text, :msg_ids);"
+            "select * from pgmq.delete((:queue_name)::text, :msg_ids);"
         ).bindparams(
             bindparam("queue_name"),
             bindparam("msg_ids", type_=ARRAY(BIGINT)),
@@ -265,7 +265,7 @@ class PGMQOperation:
     ) -> Tuple["TextClause", Dict[str, Any]]:
         """Get statement and params for archive_batch."""
         stmt = text(
-            "select * from pgmq.archive_batch((:queue_name)::text, :msg_ids);"
+            "select * from pgmq.archive((:queue_name)::text, :msg_ids);"
         ).bindparams(
             bindparam("queue_name"),
             bindparam("msg_ids", type_=ARRAY(BIGINT)),
