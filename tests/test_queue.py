@@ -492,11 +492,11 @@ def test_read_with_poll_without_vt(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     # Send a message
     msg_id = pgmq.send(queue_name, MSG)
     
-    # Call read_with_poll without providing vt parameter
-    # It should use the default pgmq.vt value (100)
+    # Call read_with_poll with vt=None to test the fallback logic
+    # When vt is None, it should fall back to using pgmq.vt value (100)
     msgs = pgmq.read_with_poll(
         queue_name,
-        vt=None,  # Explicitly passing None to test the default behavior
+        vt=None,  # Explicitly passing None to test the None fallback logic
         qty=1,
         max_poll_seconds=2,
         poll_interval_ms=100,
