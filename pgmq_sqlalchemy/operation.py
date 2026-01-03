@@ -48,23 +48,32 @@ class PGMQOperation:
                 raise ValueError("Numeric partition interval must be positive")
             return str(interval)
 
-        # Check if it's a numeric string
-        if interval.strip().isdigit():
-            numeric_value = int(interval.strip())
+        # Check if it's a numeric string (including negative numbers)
+        stripped = interval.strip()
+        is_numeric = False
+        try:
+            numeric_value = int(stripped)
+            is_numeric = True
             if numeric_value <= 0:
                 raise ValueError("Numeric partition interval must be positive")
             return str(numeric_value)
+        except ValueError:
+            # If it was a numeric string but invalid (e.g., negative), re-raise
+            if is_numeric:
+                raise
+            # Not a numeric string, continue to time-based validation
+            pass
 
         # Validate time-based interval format
         # Valid PostgreSQL interval formats: '1 day', '7 days', '1 hour', '1 month', etc.
         time_pattern = r"^\d+\s+(microsecond|millisecond|second|minute|hour|day|week|month|year)s?$"
-        if not re.match(time_pattern, interval.strip(), re.IGNORECASE):
+        if not re.match(time_pattern, stripped, re.IGNORECASE):
             raise ValueError(
                 f"Invalid time-based partition interval: '{interval}'. "
                 "Expected format: '<number> <unit>' where unit is one of: "
                 "microsecond, millisecond, second, minute, hour, day, week, month, year"
             )
-        return interval.strip()
+        return stripped
 
     @staticmethod
     def _get_create_queue_statement(
@@ -119,9 +128,7 @@ class PGMQOperation:
         """Get statement and params for send."""
         stmt = text(
             "select * from pgmq.send(:queue_name, :message, :delay);"
-        ).bindparams(
-            bindparam("message", type_=JSONB)
-        )
+        ).bindparams(bindparam("message", type_=JSONB))
         return (
             stmt,
             {
@@ -142,9 +149,7 @@ class PGMQOperation:
         """
         stmt = text(
             "select * from pgmq.send_batch(:queue_name, :messages, :delay);"
-        ).bindparams(
-            bindparam("messages", type_=ARRAY(JSONB))
-        )
+        ).bindparams(bindparam("messages", type_=ARRAY(JSONB)))
         return (
             stmt,
             {

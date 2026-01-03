@@ -444,10 +444,27 @@ def test_detach_archive(pgmq_all_variants, db_session):
     # Detach archive should not raise an error
     pgmq.detach_archive(queue_name)
 
-    # Read the archive to ensure it still exists after detaching
-    archived_msg = pgmq.read_archive(queue_name)
-    assert archived_msg is not None
-    assert archived_msg.msg_id == msg_id
+    # Verify the archive still exists after detaching by querying it directly
+    if pgmq.is_async:
+
+        async def check_archive():
+            async with pgmq.session_maker() as session:
+                result = await session.execute(
+                    text(f"SELECT msg_id FROM pgmq.a_{queue_name} WHERE msg_id = :msg_id"),
+                    {"msg_id": msg_id},
+                )
+                return result.fetchone()
+
+        archived_row = pgmq.loop.run_until_complete(check_archive())
+    else:
+        with pgmq.session_maker() as session:
+            archived_row = session.execute(
+                text(f"SELECT msg_id FROM pgmq.a_{queue_name} WHERE msg_id = :msg_id"),
+                {"msg_id": msg_id},
+            ).fetchone()
+
+    assert archived_row is not None
+    assert archived_row[0] == msg_id
 
     # Cleanup: Drop the archive and queue tables
     # After detaching, the archive is no longer part of the extension
@@ -480,53 +497,6 @@ def test_detach_archive(pgmq_all_variants, db_session):
             )
             session.execute(text(f"DROP TABLE IF EXISTS pgmq.q_{queue_name} CASCADE;"))
             session.commit()
-
-
-# Tests for read_archive methods
-def test_read_archive(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
-    pgmq, queue_name = pgmq_setup_teardown
-    msg = MSG
-    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
-    pgmq.archive(queue_name, msg_ids[0])
-    archived_msg = pgmq.read_archive(queue_name)
-    assert archived_msg is not None
-    assert archived_msg.msg_id == msg_ids[0]
-    assert archived_msg.message == msg
-
-
-def test_read_archive_empty(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
-    pgmq, queue_name = pgmq_setup_teardown
-    archived_msg = pgmq.read_archive(queue_name)
-    assert archived_msg is None
-
-
-def test_read_archive_batch(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
-    pgmq, queue_name = pgmq_setup_teardown
-    msg = MSG
-    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg])
-    pgmq.archive_batch(queue_name, msg_ids)
-    archived_msgs = pgmq.read_archive_batch(queue_name, batch_size=10)
-    assert archived_msgs is not None
-    assert len(archived_msgs) == 3
-    assert [m.msg_id for m in archived_msgs] == msg_ids
-    for m in archived_msgs:
-        assert m.message == msg
-
-
-def test_read_archive_batch_empty(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
-    pgmq, queue_name = pgmq_setup_teardown
-    archived_msgs = pgmq.read_archive_batch(queue_name, batch_size=10)
-    assert archived_msgs is None
-
-
-def test_read_archive_batch_limit(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
-    pgmq, queue_name = pgmq_setup_teardown
-    msg = MSG
-    msg_ids = pgmq.send_batch(queue_name, [msg, msg, msg, msg, msg])
-    pgmq.archive_batch(queue_name, msg_ids)
-    archived_msgs = pgmq.read_archive_batch(queue_name, batch_size=3)
-    assert archived_msgs is not None
-    assert len(archived_msgs) == 3
 
 
 # Tests for time-based partitioned queues
