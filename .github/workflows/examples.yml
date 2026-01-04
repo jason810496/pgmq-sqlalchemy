@@ -60,7 +60,7 @@ jobs:
       
       - name: Run examples tests
         run: |
-          uv run pytest examples_tests --cov=examples --cov-report=xml:coverage-examples-py${{ matrix.python-version }}.xml -v
+          uv run pytest examples_tests --cov=examples --cov-report=xml:coverage-examples-py${{ matrix.python-version }}.xml -vss
       
       - name: Upload coverage artifact
         if: always()
