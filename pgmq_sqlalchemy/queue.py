@@ -80,8 +80,7 @@ class PGMQueue:
             engine (Optional[ENGINE_TYPE]): SQLAlchemy engine (sync or async).
             session_maker (Optional[sessionmaker]): SQLAlchemy session maker.
             loop (Optional[asyncio.AbstractEventLoop]): Event loop for async operations.
-                If not provided, will use the running event loop if available,
-                otherwise creates a new event loop.
+                If not provided, a new event loop will be created for async engines.
 
         .. note::
             | ``PGMQueue`` will **auto create** the ``pgmq`` extension ( and ``pg_partman`` extension if the method is related with **partitioned_queue** ) if it does not exist in the Postgres.
@@ -113,12 +112,8 @@ class PGMQueue:
                 # Use the provided event loop
                 self.loop = loop
             else:
-                # Try to get the running event loop
-                try:
-                    self.loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    # No running loop, create a new one
-                    self.loop = asyncio.new_event_loop()
+                # Create a new event loop
+                self.loop = asyncio.new_event_loop()
 
         # create pgmq extension if not exists
         self._check_pgmq_ext()

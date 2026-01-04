@@ -18,7 +18,7 @@ def test_event_loop_with_provided_loop(get_async_dsn):
 
 
 def test_event_loop_creates_new_when_not_provided(get_async_dsn):
-    """Test that PGMQueue creates a new event loop when none is provided and no loop is running."""
+    """Test that PGMQueue creates a new event loop when none is provided."""
     pgmq = PGMQueue(dsn=get_async_dsn)
     
     assert pgmq.loop is not None
@@ -46,16 +46,13 @@ def test_event_loop_with_provided_engine(get_async_engine):
     custom_loop.close()
 
 
-@pytest.mark.asyncio
-async def test_event_loop_uses_running_loop_when_available(get_async_dsn):
-    """Test that PGMQueue uses the running event loop when available."""
-    # Get the currently running event loop
-    running_loop = asyncio.get_running_loop()
+def test_event_loop_different_instances_have_different_loops(get_async_dsn):
+    """Test that different PGMQueue instances create separate event loops when not provided."""
+    pgmq1 = PGMQueue(dsn=get_async_dsn)
+    pgmq2 = PGMQueue(dsn=get_async_dsn)
     
-    # Create PGMQueue without providing a loop
-    # Since we're inside an async context, it should use the running loop
-    pgmq = PGMQueue(dsn=get_async_dsn)
-    
-    # The PGMQueue should have captured the running loop
-    assert pgmq.loop is running_loop
-    assert pgmq.is_async is True
+    assert pgmq1.loop is not None
+    assert pgmq2.loop is not None
+    # Each instance should have its own event loop
+    assert pgmq1.loop is not pgmq2.loop
+
