@@ -1,5 +1,8 @@
 .DEFAULT_GOAL := help
 
+# Test drivers configuration
+TEST_DRIVERS := pg8000 psycopg2 psycopg psycopg2cffi asyncpg
+
 install: ## Install dependencies and `ruff` pre-commit hooks
 	pre-commit install
 	uv sync --extra dev
@@ -78,7 +81,8 @@ test-all: ## Run tests for all drivers in parallel (Usage: make test-all)
 	@$(MAKE) setup-test-db DB_NAME=test_psycopg2cffi
 	@$(MAKE) setup-test-db DB_NAME=test_asyncpg
 	@echo "Running tests in parallel..."
-	@$(MAKE) -j5 test-pg8000 test-psycopg2 test-psycopg test-psycopg2cffi test-asyncpg || (echo "Some tests failed, cleaning up..."; $(MAKE) teardown-all-test-dbs; exit 1)
+	@$(MAKE) -j5 test-pg8000 test-psycopg2 test-psycopg test-psycopg2cffi test-asyncpg || \
+		(echo "Some tests failed, cleaning up..." && $(MAKE) teardown-all-test-dbs && exit 1)
 	@echo "All tests passed! Cleaning up..."
 	@$(MAKE) teardown-all-test-dbs
 	@echo "Done!"
