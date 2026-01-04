@@ -48,14 +48,68 @@ endif
 
 test-with-driver: ## Run tests with specific driver and database (Usage: make test-with-driver DRIVER=psycopg2 DB_NAME=test_db)
 ifndef DRIVER
-	@echo "Error: DRIVER is required. Usage: make test-with-driver DRIVER=psycopg2 DB_NAME=test_db"
+	@echo "Error: DRIVER is required."
+	@echo "Supported drivers: pg8000, psycopg2, psycopg, psycopg2cffi, asyncpg"
+	@echo "Usage: make test-with-driver DRIVER=psycopg2 DB_NAME=test_db"
 	@exit 1
 endif
 ifndef DB_NAME
 	@echo "Error: DB_NAME is required. Usage: make test-with-driver DRIVER=psycopg2 DB_NAME=test_db"
 	@exit 1
 endif
+	@echo "Validating database existence..."
+	@if ! docker compose exec -T pgmq_postgres psql -U postgres -lqt | cut -d \| -f 1 | grep -qw $(DB_NAME); then \
+		echo "Error: Database '$(DB_NAME)' does not exist."; \
+		echo "Available databases:"; \
+		docker compose exec -T pgmq_postgres psql -U postgres -lqt | cut -d \| -f 1 | grep -v '^$$' | grep -v '^ *$$' | sed 's/^/  - /'; \
+		echo ""; \
+		echo "Create the database first with: make setup-test-db DB_NAME=$(DB_NAME)"; \
+		exit 1; \
+	fi
+	@echo "Running tests with driver=$(DRIVER) on database=$(DB_NAME)..."
 	uv run pytest tests --driver=$(DRIVER) --db-name=$(DB_NAME) --cov=pgmq_sqlalchemy.queue
+
+test-all: ## Run tests for all drivers in parallel (Usage: make test-all)
+	@echo "Running tests for all drivers in parallel..."
+	@echo "Setting up databases..."
+	@$(MAKE) setup-test-db DB_NAME=test_pg8000
+	@$(MAKE) setup-test-db DB_NAME=test_psycopg2
+	@$(MAKE) setup-test-db DB_NAME=test_psycopg
+	@$(MAKE) setup-test-db DB_NAME=test_psycopg2cffi
+	@$(MAKE) setup-test-db DB_NAME=test_asyncpg
+	@echo "Running tests in parallel..."
+	@$(MAKE) -j5 test-pg8000 test-psycopg2 test-psycopg test-psycopg2cffi test-asyncpg || (echo "Some tests failed, cleaning up..."; $(MAKE) teardown-all-test-dbs; exit 1)
+	@echo "All tests passed! Cleaning up..."
+	@$(MAKE) teardown-all-test-dbs
+	@echo "Done!"
+
+test-pg8000:
+	@echo "[pg8000] Running tests..."
+	@uv run pytest tests --driver=pg8000 --db-name=test_pg8000 --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-pg8000.xml -q
+
+test-psycopg2:
+	@echo "[psycopg2] Running tests..."
+	@uv run pytest tests --driver=psycopg2 --db-name=test_psycopg2 --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-psycopg2.xml -q
+
+test-psycopg:
+	@echo "[psycopg] Running tests..."
+	@uv run pytest tests --driver=psycopg --db-name=test_psycopg --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-psycopg.xml -q
+
+test-psycopg2cffi:
+	@echo "[psycopg2cffi] Running tests..."
+	@uv run pytest tests --driver=psycopg2cffi --db-name=test_psycopg2cffi --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-psycopg2cffi.xml -q
+
+test-asyncpg:
+	@echo "[asyncpg] Running tests..."
+	@uv run pytest tests --driver=asyncpg --db-name=test_asyncpg --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-asyncpg.xml -q
+
+teardown-all-test-dbs:
+	@echo "Cleaning up all test databases..."
+	@$(MAKE) teardown-test-db DB_NAME=test_pg8000 || true
+	@$(MAKE) teardown-test-db DB_NAME=test_psycopg2 || true
+	@$(MAKE) teardown-test-db DB_NAME=test_psycopg || true
+	@$(MAKE) teardown-test-db DB_NAME=test_psycopg2cffi || true
+	@$(MAKE) teardown-test-db DB_NAME=test_asyncpg || true
 
 clear-db: ## Clear the database
 	docker compose down pgmq_postgres
@@ -81,7 +135,7 @@ doc-serve: doc-clean ## Serve the documentation
 doc-clean: ## Clean the documentation
 	cd doc && rm -r _build
 
-.PHONY: install build setup-env test-local test-with-driver setup-test-db teardown-test-db test-docker test-docker-rebuild clear-db start-db exec-db doc-build doc-serve doc-clean
+.PHONY: install build setup-env test-local test-with-driver test-all test-pg8000 test-psycopg2 test-psycopg test-psycopg2cffi test-asyncpg teardown-all-test-dbs setup-test-db teardown-test-db test-docker test-docker-rebuild clear-db start-db exec-db doc-build doc-serve doc-clean
 
 # generate help from comments
 .PHONY: help

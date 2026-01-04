@@ -110,6 +110,18 @@ Available drivers:
 - Sync drivers: `pg8000`, `psycopg2`, `psycopg`, `psycopg2cffi`
 - Async drivers: `asyncpg`
 
+#### Run All Tests in Parallel
+
+To run tests for all drivers in parallel (similar to CI matrix):
+```bash
+make test-all
+```
+
+This command will:
+1. Set up test databases for all drivers
+2. Run tests for all drivers in parallel
+3. Clean up all test databases after completion
+
 #### Alternative Testing Methods
 
 Run tests for a specific driver (uses default database):
