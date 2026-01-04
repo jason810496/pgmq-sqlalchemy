@@ -67,8 +67,7 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
     while True:
         try:
             # Read a batch of messages using pgmq instance method
-            async with pgmq.session_maker() as session:
-                messages = await pgmq.read_batch_async(QUEUE_NAME, vt=vt, batch_size=batch_size, session=session, commit=True)
+            messages = await pgmq.read_batch(QUEUE_NAME, vt=vt, batch_size=batch_size)
             
             if not messages:
                 logger.debug("No messages available, waiting...")
@@ -89,8 +88,7 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
             # Delete successfully processed messages using pgmq instance method
             for (msg_id, _), result in zip(tasks, results):
                 if isinstance(result, bool) and result:
-                    async with pgmq.session_maker() as session:
-                        deleted = await pgmq.delete_async(QUEUE_NAME, msg_id, session=session, commit=True)
+                    deleted = await pgmq.delete(QUEUE_NAME, msg_id)
                     if deleted:
                         logger.info(f"Deleted message {msg_id}")
                 elif isinstance(result, Exception):
