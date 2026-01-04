@@ -30,6 +30,7 @@ class PGMQueue:
         dsn: Optional[str] = None,
         engine: Optional[ENGINE_TYPE] = None,
         session_maker: Optional[sessionmaker] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
         """
 
@@ -74,6 +75,13 @@ class PGMQueue:
             async_session_maker = sessionmaker(bind=async_engine, class_=AsyncSession)
             async_pgmq_client = PGMQueue(session_maker=async_session_maker)
 
+        Args:
+            dsn (Optional[str]): Database connection string.
+            engine (Optional[ENGINE_TYPE]): SQLAlchemy engine (sync or async).
+            session_maker (Optional[sessionmaker]): SQLAlchemy session maker.
+            loop (Optional[asyncio.AbstractEventLoop]): Event loop for async operations.
+                If not provided, a new event loop will be created for async engines.
+
         .. note::
             | ``PGMQueue`` will **auto create** the ``pgmq`` extension ( and ``pg_partman`` extension if the method is related with **partitioned_queue** ) if it does not exist in the Postgres.
             | But you must make sure that the ``pgmq`` extension ( or ``pg_partman`` extension ) already **installed** in the Postgres.
@@ -100,7 +108,12 @@ class PGMQueue:
             )
 
         if self.is_async:
-            self.loop = asyncio.new_event_loop()
+            if loop is not None:
+                # Use the provided event loop
+                self.loop = loop
+            else:
+                # Create a new event loop
+                self.loop = asyncio.new_event_loop()
 
         # create pgmq extension if not exists
         self._check_pgmq_ext()
