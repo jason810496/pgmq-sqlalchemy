@@ -172,9 +172,6 @@ def get_messages(limit: int = 10, db: Session = Depends(get_db)):
     Returns:
         List of messages from the queue
     """
-    from pgmq_sqlalchemy.schema import Message
-    from typing import List
-    
     messages = op.read_batch(QUEUE_NAME, vt=30, batch_size=limit, session=db, commit=True)
     
     if not messages:

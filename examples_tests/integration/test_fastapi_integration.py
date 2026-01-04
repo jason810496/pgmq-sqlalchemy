@@ -10,6 +10,8 @@ import requests
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from pgmq_sqlalchemy import op
+
 
 @pytest.fixture(scope="module")
 def examples_dir():
@@ -160,7 +162,6 @@ def test_api_consumer_integration(api_instance, consumer_instance, database_url)
     while time.time() - start_time < max_wait:
         # Check queue metrics to see if there are any messages left
         with SessionLocal() as session:
-            from pgmq_sqlalchemy import op
             # Get the test queue name from environment or use default
             test_queue = os.getenv("QUEUE_NAME", "test_integration_order_queue")
             

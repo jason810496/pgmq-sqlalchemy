@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from pgmq_sqlalchemy import PGMQueue
+from pgmq_sqlalchemy import PGMQueue, op
 
 
 @pytest.fixture(scope="module")
@@ -111,7 +111,6 @@ def test_create_order(client, sync_database_url, test_queue_name):
     SessionLocal = sessionmaker(bind=engine)
     
     with SessionLocal() as session:
-        from pgmq_sqlalchemy import op
         msg = op.read(test_queue_name, vt=30, session=session, commit=True)
         
         assert msg is not None
