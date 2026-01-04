@@ -30,10 +30,17 @@ docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io
 
 ## Installation
 
-Install required dependencies:
+Install required dependencies using uv:
 
 ```bash
-pip install -r requirements.txt
+uv pip install fastapi uvicorn psycopg2-binary asyncpg pgmq-sqlalchemy
+```
+
+Or install from the project root with uv:
+
+```bash
+cd /path/to/pgmq-sqlalchemy
+uv pip install -e ".[psycopg2-binary,asyncpg]"
 ```
 
 ## Running the Example

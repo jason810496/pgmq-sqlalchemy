@@ -24,7 +24,7 @@ def setup_api_app(sync_database_url, test_queue_name):
     
     # Add examples directory to path
     examples_dir = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), 
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
         "examples", 
         "fastapi_pub_sub"
     )

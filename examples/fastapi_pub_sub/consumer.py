@@ -8,6 +8,7 @@ This example demonstrates:
 """
 import asyncio
 import logging
+import os
 from typing import Optional
 
 from pgmq_sqlalchemy import PGMQueue
@@ -20,9 +21,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Database configuration
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
-QUEUE_NAME = "order_queue"
+# Database configuration - can be overridden by environment variables
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres")
+QUEUE_NAME = os.getenv("QUEUE_NAME", "order_queue")
 
 
 async def process_order(message: Message) -> bool:
@@ -60,16 +61,14 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
         batch_size: Number of messages to read in each batch
         vt: Visibility timeout in seconds
     """
-    from pgmq_sqlalchemy import op
-    
     logger.info(f"Starting consumer for queue: {QUEUE_NAME}")
     logger.info(f"Batch size: {batch_size}, Visibility timeout: {vt}s")
     
     while True:
         try:
-            # Read a batch of messages
+            # Read a batch of messages using pgmq instance method
             async with pgmq.session_maker() as session:
-                messages = await op.read_batch_async(QUEUE_NAME, vt=vt, batch_size=batch_size, session=session, commit=True)
+                messages = await pgmq.read_batch_async(QUEUE_NAME, vt=vt, batch_size=batch_size, session=session, commit=True)
             
             if not messages:
                 logger.debug("No messages available, waiting...")
@@ -87,12 +86,13 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
             # Wait for all processing to complete
             results = await asyncio.gather(*[t[1] for t in tasks], return_exceptions=True)
             
-            # Delete successfully processed messages
+            # Delete successfully processed messages using pgmq instance method
             for (msg_id, _), result in zip(tasks, results):
                 if isinstance(result, bool) and result:
                     async with pgmq.session_maker() as session:
-                        await op.delete_async(QUEUE_NAME, msg_id, session=session, commit=True)
-                    logger.info(f"Deleted message {msg_id}")
+                        deleted = await pgmq.delete_async(QUEUE_NAME, msg_id, session=session, commit=True)
+                    if deleted:
+                        logger.info(f"Deleted message {msg_id}")
                 elif isinstance(result, Exception):
                     logger.error(f"Exception processing message {msg_id}: {result}")
                 else:
@@ -108,31 +108,18 @@ async def consume_messages(pgmq: PGMQueue, batch_size: int = 10, vt: int = 30):
 
 async def main():
     """Main entry point for the consumer."""
-    # Initialize PGMQueue with async session maker
+    # Initialize PGMQueue with async session maker and event loop
     from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
     from sqlalchemy.orm import sessionmaker
     
     async_engine = create_async_engine(DATABASE_URL)
     async_session_maker = sessionmaker(bind=async_engine, class_=AsyncSession)
     
-    # Note: Manual PGMQueue setup to avoid event loop conflicts
-    # PGMQueue.__init__ tries to run a nested event loop which conflicts
-    # with asyncio.run(). This is a known limitation when using PGMQueue
-    # in an async context manager like asyncio.run().
-    # For proper usage, consider using PGMQOperation methods directly with sessions.
-    pgmq = PGMQueue.__new__(PGMQueue)
-    pgmq.engine = async_engine
-    pgmq.session_maker = async_session_maker
-    pgmq.is_async = True
-    pgmq.delay = 0
-    pgmq.vt = 30
-    pgmq.loop = None
-    pgmq.is_pg_partman_ext_checked = True
+    # Get the current event loop to pass to PGMQueue
+    loop = asyncio.get_event_loop()
     
-    # Check PGMQ extension manually
-    async with async_session_maker() as session:
-        from pgmq_sqlalchemy import op
-        await op.check_pgmq_ext_async(session=session, commit=True)
+    # Initialize PGMQueue with the event loop to avoid conflicts
+    pgmq = PGMQueue(session_maker=async_session_maker, loop=loop)
     
     try:
         # Start consuming messages

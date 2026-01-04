@@ -5,6 +5,7 @@ This example demonstrates:
 - Publishing messages to PGMQ using PGMQOperation (op)
 - Creating orders and sending them to a message queue
 """
+import os
 from typing import Generator
 from contextlib import contextmanager, asynccontextmanager
 
@@ -16,9 +17,9 @@ from datetime import datetime
 
 from pgmq_sqlalchemy import op
 
-# Database configuration
-DATABASE_URL = "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres"
-QUEUE_NAME = "order_queue"
+# Database configuration - can be overridden by environment variables
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres")
+QUEUE_NAME = os.getenv("QUEUE_NAME", "order_queue")
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL)
@@ -113,10 +114,9 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
         price=order_data.price,
     )
     db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
+    db.flush()  # Flush to get the ID without committing
     
-    # Publish message to PGMQ using op
+    # Publish message to PGMQ using op in the same transaction
     message_data = {
         "order_id": db_order.id,
         "customer_name": db_order.customer_name,
@@ -126,7 +126,11 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
         "created_at": db_order.created_at.isoformat(),
     }
     
-    msg_id = op.send(QUEUE_NAME, message_data, session=db, commit=True)
+    msg_id = op.send(QUEUE_NAME, message_data, session=db, commit=False)
+    
+    # Commit both order and message in the same transaction
+    db.commit()
+    db.refresh(db_order)
     
     # Return order with message ID
     return OrderResponse(
@@ -155,6 +159,39 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order
+
+
+@app.get("/messages")
+def get_messages(limit: int = 10, db: Session = Depends(get_db)):
+    """Read messages from the PGMQ queue.
+    
+    Args:
+        limit: Number of messages to read (default: 10)
+        db: Database session
+        
+    Returns:
+        List of messages from the queue
+    """
+    from pgmq_sqlalchemy.schema import Message
+    from typing import List
+    
+    messages = op.read_batch(QUEUE_NAME, vt=30, batch_size=limit, session=db, commit=True)
+    
+    if not messages:
+        return {"messages": []}
+    
+    return {
+        "messages": [
+            {
+                "msg_id": msg.msg_id,
+                "read_ct": msg.read_ct,
+                "enqueued_at": msg.enqueued_at.isoformat(),
+                "vt": msg.vt.isoformat(),
+                "message": msg.message,
+            }
+            for msg in messages
+        ]
+    }
 
 
 @app.get("/health")
