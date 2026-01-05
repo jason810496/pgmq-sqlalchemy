@@ -3,6 +3,7 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
+#   "libcst>=1.0.0",
 # ]
 # ///
 """
@@ -12,7 +13,7 @@ For each public sync method (not starting with _), checks if there's a correspon
 async method with the same name plus '_async' suffix.
 """
 
-import ast
+import libcst as cst
 import sys
 from pathlib import Path
 
@@ -27,7 +28,7 @@ from scripts_utils.common_ast import parse_methods_info_from_target_class  # noq
 def main():
     """Main function."""
 
-    module_tree = ast.parse(source=QUEUE_FILE.read_text(), filename=QUEUE_FILE)
+    module_tree = cst.parse_module(QUEUE_FILE.read_text())
     _, missing_async = parse_methods_info_from_target_class(
         module_tree, target_class="PGMQueue"
     )
