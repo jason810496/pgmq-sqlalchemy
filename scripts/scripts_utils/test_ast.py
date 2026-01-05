@@ -6,8 +6,6 @@ from typing import List, Set, Dict
 
 sys.path.insert(0, str(Path(__name__).parent.parent.joinpath("scripts").resolve()))
 
-from scripts_utils.common_ast import MethodInfo  # noqa: E402
-
 
 class TestInfo:
     """Information about a test function."""
@@ -61,7 +59,7 @@ class AsyncTestTransformer(cst.CSTTransformer):
                         new_call = updated_node.with_changes(func=new_func)
                         # Wrap in await
                         return cst.Await(expression=new_call)
-        
+
         return updated_node
 
     def leave_FunctionDef(
@@ -70,7 +68,8 @@ class AsyncTestTransformer(cst.CSTTransformer):
         """Transform function to async and update name"""
         # Transform function to async
         new_node = updated_node.with_changes(
-            asynchronous=cst.Asynchronous(), name=cst.Name(f"{updated_node.name.value}_async")
+            asynchronous=cst.Asynchronous(),
+            name=cst.Name(f"{updated_node.name.value}_async"),
         )
 
         # Transform docstring if exists
@@ -104,7 +103,9 @@ class AsyncTestTransformer(cst.CSTTransformer):
                         new_docstring = f"{quote}{transformed_content}{quote}"
 
                         # Create new docstring node
-                        new_expr = expr.with_changes(value=cst.SimpleString(new_docstring))
+                        new_expr = expr.with_changes(
+                            value=cst.SimpleString(new_docstring)
+                        )
                         new_first_stmt = first_stmt.with_changes(body=[new_expr])
 
                         # Update body with new docstring
@@ -142,7 +143,10 @@ class FillMissingTestsToModule(cst.CSTTransformer):
                     if isinstance(item, cst.Import):
                         for name in item.names:
                             if isinstance(name, cst.ImportAlias):
-                                if isinstance(name.name, cst.Name) and name.name.value == "asyncio":
+                                if (
+                                    isinstance(name.name, cst.Name)
+                                    and name.name.value == "asyncio"
+                                ):
                                     self.has_asyncio_import = True
                                     break
         return True
@@ -159,20 +163,34 @@ class FillMissingTestsToModule(cst.CSTTransformer):
             if not inserted_asyncio and not self.has_asyncio_import:
                 if isinstance(stmt, cst.SimpleStatementLine):
                     # Check if this is the last import statement
-                    is_import = any(isinstance(item, (cst.Import, cst.ImportFrom)) for item in stmt.body)
+                    is_import = any(
+                        isinstance(item, (cst.Import, cst.ImportFrom))
+                        for item in stmt.body
+                    )
                     if is_import:
                         # Look ahead to see if next statement is not an import
                         current_idx = list(updated_node.body).index(stmt)
                         if current_idx + 1 < len(updated_node.body):
                             next_stmt = list(updated_node.body)[current_idx + 1]
                             if isinstance(next_stmt, cst.SimpleStatementLine):
-                                next_is_import = any(isinstance(item, (cst.Import, cst.ImportFrom)) for item in next_stmt.body)
+                                next_is_import = any(
+                                    isinstance(item, (cst.Import, cst.ImportFrom))
+                                    for item in next_stmt.body
+                                )
                                 if not next_is_import:
                                     # This is the last import, add asyncio after it
                                     new_body.append(stmt)
                                     new_body.append(
                                         cst.SimpleStatementLine(
-                                            body=[cst.Import(names=[cst.ImportAlias(name=cst.Name("asyncio"))])]
+                                            body=[
+                                                cst.Import(
+                                                    names=[
+                                                        cst.ImportAlias(
+                                                            name=cst.Name("asyncio")
+                                                        )
+                                                    ]
+                                                )
+                                            ]
                                         )
                                     )
                                     inserted_asyncio = True
@@ -182,12 +200,20 @@ class FillMissingTestsToModule(cst.CSTTransformer):
                             new_body.append(stmt)
                             new_body.append(
                                 cst.SimpleStatementLine(
-                                    body=[cst.Import(names=[cst.ImportAlias(name=cst.Name("asyncio"))])]
+                                    body=[
+                                        cst.Import(
+                                            names=[
+                                                cst.ImportAlias(
+                                                    name=cst.Name("asyncio")
+                                                )
+                                            ]
+                                        )
+                                    ]
                                 )
                             )
                             inserted_asyncio = True
                             continue
-            
+
             new_body.append(stmt)
             # If this is a sync test function, check if we need to add async version after it
             if isinstance(stmt, cst.FunctionDef):
@@ -250,10 +276,12 @@ def get_async_tests_to_add(
     """Generate async test functions for missing tests"""
     transformer = AsyncTestTransformer()
     async_tests: Dict[str, TestInfo] = {}
-    
+
     for test_info in sync_tests:
         if test_info.name in missing_async and not test_info.is_async:
-            async_tests[test_info.name] = transform_to_async_test(transformer, test_info)
+            async_tests[test_info.name] = transform_to_async_test(
+                transformer, test_info
+            )
 
     return async_tests
 
