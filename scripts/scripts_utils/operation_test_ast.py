@@ -1,6 +1,6 @@
 import libcst as cst
 import re
-from typing import Dict, Set, List
+from typing import Dict, Set, List, Tuple
 from scripts_utils.common_ast import MethodInfo
 
 
@@ -143,7 +143,6 @@ class AsyncTestTransformer(cst.CSTTransformer):
         """Transform docstring for async version."""
         # Replace 'synchronously' with 'asynchronously'
         modified = docstring.replace("using PGMQOperation.", "using PGMQOperation asynchronously.")
-        modified = modified.replace("Test ", "Test ")  # Keep Test prefix
         
         # Add 'asynchronously' before the period if not already present
         if "asynchronously" not in modified and not modified.endswith("asynchronously."):
@@ -230,7 +229,7 @@ class FillMissingTestsTransformer(cst.CSTTransformer):
 
 def parse_test_functions_from_module(
     module_tree: cst.Module,
-) -> tuple[List[MethodInfo], Set[str]]:
+) -> Tuple[List[MethodInfo], Set[str]]:
     """
     Parse test functions from module.
 
