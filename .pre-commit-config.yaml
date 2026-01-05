@@ -8,3 +8,9 @@ repos:
         args: [ --fix ]
       # Run the formatter.
       - id: ruff-format
+  - repo: local
+    hooks:
+      - id: check-sync-async-method-for-queue
+        name: Check sync/async method for queue
+        entry: ./scripts/ci/pre_commit/check_sync_async_method_for_queue.py
+        language: python
