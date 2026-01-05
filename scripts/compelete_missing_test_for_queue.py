@@ -60,7 +60,6 @@ def main():
     module_tree = fill_missing_tests_to_module(module_tree, async_tests_to_add)
 
     # write back to tmp file for comparison
-    tmp_file = ""
     with tempfile.NamedTemporaryFile(mode="w+t", delete=False, suffix=".py") as f:
         f.write(module_tree.code)
         f.flush()

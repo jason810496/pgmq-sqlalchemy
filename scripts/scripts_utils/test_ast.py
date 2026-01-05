@@ -2,9 +2,9 @@ import libcst as cst
 import re
 import sys
 from pathlib import Path
-from typing import List, Set, Dict
+from typing import List, Set, Dict, Tuple
 
-sys.path.insert(0, str(Path(__name__).parent.parent.joinpath("scripts").resolve()))
+sys.path.insert(0, str(Path(__file__).parent.parent.joinpath("scripts").resolve()))
 
 
 class TestInfo:
@@ -230,7 +230,7 @@ class FillMissingTestsToModule(cst.CSTTransformer):
 
 def parse_test_functions_from_module(
     module_tree: cst.Module,
-) -> tuple[List[TestInfo], Set[str]]:
+) -> Tuple[List[TestInfo], Set[str]]:
     """
     Parse test functions from test module CST Tree
 
@@ -263,7 +263,15 @@ def parse_test_functions_from_module(
 def transform_to_async_test(
     transformer: AsyncTestTransformer, test_info: TestInfo
 ) -> TestInfo:
-    """Transform a sync test to async test"""
+    """Transform a sync test to async test.
+
+    Args:
+        transformer: AsyncTestTransformer instance for CST transformations
+        test_info: TestInfo object containing sync test metadata
+
+    Returns:
+        TestInfo object with transformed async test function
+    """
     orig_sync_func_node = test_info.node
     async_node = orig_sync_func_node.visit(transformer)
 
