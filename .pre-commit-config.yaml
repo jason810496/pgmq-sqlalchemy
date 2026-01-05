@@ -13,4 +13,5 @@ repos:
       - id: check-sync-async-method-for-queue
         name: Check sync/async method for queue
         entry: ./scripts/ci/pre_commit/check_sync_async_method_for_queue.py
+        files: ^pgmq_sqlalchemy/.*\.py$
         language: python
