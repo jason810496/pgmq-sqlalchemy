@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import List, Set, Dict
 
-sys.path.insert(0, str(Path(__name__).parent.parent.joinpath("scripts").resolve()))
+sys.path.insert(0, str(Path(__file__).parent.parent.joinpath("scripts").resolve()))
 
 from scripts_utils.common_ast import MethodInfo  # noqa: E402
 
