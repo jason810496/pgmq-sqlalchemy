@@ -10,13 +10,13 @@ repos:
       - id: ruff-format
   - repo: local
     hooks:
-      - id: check-sync-async-method-for-queue
+      - id: check-sync-async-methods-for-queue
         name: Check sync/async method for queue
-        entry: ./scripts/ci/pre_commit/check_sync_async_method_for_queue.py
+        entry: ./scripts/ci/pre_commit/check_sync_async_methods_for_queue.py
         files: ^pgmq_sqlalchemy/.*\.py$
         language: python
-      - id: check-sync-async-method-for-operation
-        name: Check sync/async method for operation
-        entry: ./scripts/ci/pre_commit/check_sync_async_method_for_operation.py
+      - id: check-sync-async-methods-for-operation
+        name: Check sync/async methods for operation
+        entry: ./scripts/ci/pre_commit/check_sync_async_methods_for_operation.py
         files: ^pgmq_sqlalchemy/.*\.py$
         language: python
