@@ -50,12 +50,12 @@ class AsyncOperationTransformer(cst.CSTTransformer):
                         # For concatenated strings, we'll skip transformation for now
                         docstring = None
                     
-                    if docstring and len(docstring) > 2:
+                    if docstring and len(docstring) >= 2:
                         # Remove quotes to get actual string content
-                        if docstring.startswith('"""') or docstring.startswith("'''"):
+                        if len(docstring) >= 6 and (docstring.startswith('"""') or docstring.startswith("'''")):
                             quote = docstring[:3]
                             content = docstring[3:-3]
-                        elif len(docstring) > 1 and (docstring.startswith('"') or docstring.startswith("'")):
+                        elif len(docstring) >= 2 and (docstring.startswith('"') or docstring.startswith("'")):
                             quote = docstring[0]
                             content = docstring[1:-1]
                         else:
