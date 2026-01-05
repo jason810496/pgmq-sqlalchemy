@@ -17,12 +17,13 @@ import libcst as cst
 import sys
 from pathlib import Path
 import contextlib
+import shutil
 
 import tempfile
 
 
-from scripts_utils.config import QUEUE_FILE
-from scripts_utils.console import console
+from scripts_utils.config import QUEUE_FILE, QUEUE_BACKUP_FILE
+from scripts_utils.console import console, user_input
 from scripts_utils.common_ast import (
     parse_methods_info_from_target_class,
     fill_missing_methods_to_class,
@@ -58,7 +59,9 @@ def main():
     # create missing async method from
     async_methods_to_add = get_async_methods_to_add(sync_methods, missing_async)
     # insert back to class
-    module_tree = fill_missing_methods_to_class(module_tree, "PGMQueue", async_methods_to_add)
+    module_tree = fill_missing_methods_to_class(
+        module_tree, "PGMQueue", async_methods_to_add
+    )
 
     # write back to tmp file for comparison
     tmp_file = ""
@@ -88,6 +91,13 @@ def main():
     # compare existed queue.py and tmp.py
     with contextlib.suppress(Exception):
         compare_file(QUEUE_FILE, tmp_file)
+
+    # ask whether to apply the change
+    if user_input(f"Do you want to apply change to {QUEUE_FILE}"):
+        console.log(f"Backup existed {QUEUE_FILE} at {QUEUE_BACKUP_FILE}")
+        shutil.copy(QUEUE_FILE, QUEUE_BACKUP_FILE)
+        shutil.copy(tmp_file, QUEUE_FILE)
+        console.log("Add missing async methods successfully")
 
     sys.exit(0)
 
