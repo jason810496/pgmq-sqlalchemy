@@ -2,6 +2,8 @@
 import os
 import pytest
 
+import logging
+
 
 def pytest_addoption(parser):
     """Add custom command-line options for pytest."""
@@ -10,6 +12,23 @@ def pytest_addoption(parser):
         action="store",
         default=None,
         help="Specify the database name to use for testing",
+    )
+
+@pytest.fixture(scope="module")
+def configure_logger():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s][%(asctime)s][%(name)s] %(message)s"
+    )
+
+
+@pytest.fixture(scope="module")
+def examples_dir():
+    """Return the path to the examples directory."""
+    return os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "examples",
+        "fastapi_pub_sub"
     )
 
 

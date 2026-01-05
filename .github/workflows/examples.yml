@@ -44,9 +44,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          uv sync --extra dev
-          # Install additional dependencies for examples
-          uv pip install fastapi uvicorn httpx
+          uv sync --all-groups --no-group docs
       
       - name: Start PostgreSQL
         run: |
