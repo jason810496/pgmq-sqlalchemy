@@ -50,12 +50,12 @@ class AsyncOperationTransformer(cst.CSTTransformer):
                         # For concatenated strings, we'll skip transformation for now
                         docstring = None
                     
-                    if docstring:
+                    if docstring and len(docstring) > 2:
                         # Remove quotes to get actual string content
                         if docstring.startswith('"""') or docstring.startswith("'''"):
                             quote = docstring[:3]
                             content = docstring[3:-3]
-                        elif docstring.startswith('"') or docstring.startswith("'"):
+                        elif len(docstring) > 1 and (docstring.startswith('"') or docstring.startswith("'")):
                             quote = docstring[0]
                             content = docstring[1:-1]
                         else:
@@ -127,10 +127,6 @@ class AsyncOperationTransformer(cst.CSTTransformer):
                 )
         
         return modified
-
-    def leave_Return(self, original_node: cst.Return, updated_node: cst.Return) -> cst.Return:
-        """Leave return statements as is - they don't need await in PGMQOperation."""
-        return updated_node
 
 
 def transform_to_async_operation(
