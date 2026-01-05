@@ -1,6 +1,10 @@
-from typing import List, Dict, Tuple, Literal
+from typing import List, Dict, Tuple, Literal, Set, TYPE_CHECKING
+import sys
 
 import libcst as cst
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 class MethodInfo:
@@ -41,12 +45,14 @@ class FillMissingMethodsToClass(cst.CSTTransformer):
         self.class_name = class_name
         self.to_add_async_methods = to_add_async_methods
 
-    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+    def leave_ClassDef(
+        self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+    ) -> cst.ClassDef:
         if updated_node.name.value == self.class_name:
             # Get current body statements
             body_statements = list(updated_node.body.body)
             new_body = []
-            
+
             for stmt in body_statements:
                 new_body.append(stmt)
                 # If this is a sync function, check if we need to add async version after it
@@ -55,12 +61,12 @@ class FillMissingMethodsToClass(cst.CSTTransformer):
                     if func_name in self.to_add_async_methods:
                         # Add the async version right after the sync version
                         new_body.append(self.to_add_async_methods[func_name].node)
-            
+
             # Update the class body with new statements
             return updated_node.with_changes(
                 body=updated_node.body.with_changes(body=new_body)
             )
-        
+
         return updated_node
 
 
@@ -115,3 +121,27 @@ def fill_missing_methods_to_class(
         class_name=target_class, to_add_async_methods=to_add_async_methods
     )
     return module_tree.visit(transformer)
+
+
+def check_missing_async_methods(
+    console: "Console",
+    target_class: Literal["PGMQueue", "PGMQOperation"],
+    missing_async: Set[str],
+) -> None:
+    if not missing_async:
+        console.print(
+            f"[bold green]SUCCESS:[/bold green] All public methods have corresponding async versions for {target_class}!"
+        )
+        sys.exit(0)
+
+    # log all the missing async methods
+    console.print()
+    console.print(
+        f"[bold yellow]WARNING:[/bold yellow] Found {len(missing_async)} missing async methods for {target_class}:",
+        style="bold",
+    )
+    for method in missing_async:
+        console.print(f"  [yellow]-[/yellow] {method}_async")
+    console.print()
+
+    sys.exit(1)
