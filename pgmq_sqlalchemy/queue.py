@@ -1,8 +1,9 @@
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
+
 
 from .schema import Message, QueueMetrics
 from ._types import ENGINE_TYPE, SESSION_TYPE
@@ -12,6 +13,10 @@ from ._utils import (
     is_async_dsn,
 )
 from .operation import PGMQOperation
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class PGMQueue:
@@ -104,35 +109,18 @@ class PGMQueue:
 
     def _check_pgmq_ext(self) -> None:
         """Check if the pgmq extension exists."""
-        if self.is_async:
-            return self.loop.run_until_complete(self._check_pgmq_ext_async())
-        return self._check_pgmq_ext_sync()
-
-    async def _check_pg_partman_ext_async(self) -> None:
-        """Check if the pg_partman extension exists."""
-        async with self.session_maker() as session:
-            await PGMQOperation.check_pg_partman_ext_async(session=session, commit=True)
-
-    def _check_pg_partman_ext_sync(self) -> None:
-        """Check if the pg_partman extension exists."""
-        with self.session_maker() as session:
-            PGMQOperation.check_pg_partman_ext(session=session, commit=True)
+        self._execute_operation(PGMQOperation.check_pgmq_ext, session=None, commit=True)
 
     def _check_pg_partman_ext(self) -> None:
         """Check if the pg_partman extension exists."""
-        if self.is_pg_partman_ext_checked:
-            return
-        self.is_pg_partman_ext_checked
-
-        if self.is_async:
-            return self.loop.run_until_complete(self._check_pg_partman_ext_async())
-        return self._check_pg_partman_ext_sync()
+        self._execute_operation(
+            PGMQOperation.check_pg_partman_ext, session=None, commit=True
+        )
 
     def _execute_operation(
         self,
         op_sync,
-        op_async,
-        session: Optional[SESSION_TYPE],
+        session: Optional["Session"],
         commit: bool,
         *args,
         **kwargs,
@@ -141,6 +129,30 @@ class PGMQueue:
 
         Args:
             op_sync: The synchronous operation function from PGMQOperation
+            session: Optional session to use (if None, creates a new one)
+            commit: Whether to commit the transaction
+            *args: Positional arguments to pass to the operation
+            **kwargs: Keyword arguments to pass to the operation
+
+        Returns:
+            The result from the operation
+        """
+        if session is None:
+            with self.session_maker() as s:
+                return op_sync(*args, session=s, commit=commit, **kwargs)
+        return op_sync(*args, session=session, commit=commit, **kwargs)
+
+    async def _execute_async_operation(
+        self,
+        op_async,
+        session: Optional["AsyncSession"],
+        commit: bool,
+        *args,
+        **kwargs,
+    ):
+        """Helper method to execute sync or async operations with session management.
+
+        Args:
             op_async: The asynchronous operation function from PGMQOperation
             session: Optional session to use (if None, creates a new one)
             commit: Whether to commit the transaction
@@ -150,22 +162,10 @@ class PGMQueue:
         Returns:
             The result from the operation
         """
-        if self.is_async:
-            if session is None:
-
-                async def _run():
-                    async with self.session_maker() as s:
-                        return await op_async(*args, session=s, commit=commit, **kwargs)
-
-                return self.loop.run_until_complete(_run())
-            return self.loop.run_until_complete(
-                op_async(*args, session=session, commit=commit, **kwargs)
-            )
-
         if session is None:
-            with self.session_maker() as s:
-                return op_sync(*args, session=s, commit=commit, **kwargs)
-        return op_sync(*args, session=session, commit=commit, **kwargs)
+            async with self.session_maker() as s:
+                return await op_async(*args, session=s, commit=commit, **kwargs)
+        return await op_async(*args, session=session, commit=commit, **kwargs)
 
     def create_queue(
         self,
@@ -193,7 +193,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.create_queue,
-            PGMQOperation.create_queue_async,
             session,
             commit,
             queue_name,
@@ -246,7 +245,6 @@ class PGMQueue:
 
         return self._execute_operation(
             PGMQOperation.create_partitioned_queue,
-            PGMQOperation.create_partitioned_queue_async,
             session,
             commit,
             queue_name,
@@ -266,7 +264,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.validate_queue_name,
-            PGMQOperation.validate_queue_name_async,
             session,
             commit,
             queue_name,
@@ -303,7 +300,6 @@ class PGMQueue:
 
         return self._execute_operation(
             PGMQOperation.drop_queue,
-            PGMQOperation.drop_queue_async,
             session,
             commit,
             queue,
@@ -325,7 +321,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.list_queues,
-            PGMQOperation.list_queues_async,
             session,
             commit,
         )
@@ -359,7 +354,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.send,
-            PGMQOperation.send_async,
             session,
             commit,
             queue_name,
@@ -390,7 +384,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.send_batch,
-            PGMQOperation.send_batch_async,
             session,
             commit,
             queue_name,
@@ -470,7 +463,6 @@ class PGMQueue:
 
         return self._execute_operation(
             PGMQOperation.read,
-            PGMQOperation.read_async,
             session,
             commit,
             queue_name,
@@ -507,7 +499,6 @@ class PGMQueue:
 
         return self._execute_operation(
             PGMQOperation.read_batch,
-            PGMQOperation.read_batch_async,
             session,
             commit,
             queue_name,
@@ -579,7 +570,6 @@ class PGMQueue:
 
         return self._execute_operation(
             PGMQOperation.read_with_poll,
-            PGMQOperation.read_with_poll_async,
             session,
             commit,
             queue_name,
@@ -657,7 +647,6 @@ class PGMQueue:
 
         return self._execute_operation(
             PGMQOperation.set_vt,
-            PGMQOperation.set_vt_async,
             session,
             commit,
             queue_name,
@@ -684,7 +673,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.pop,
-            PGMQOperation.pop_async,
             session,
             commit,
             queue_name,
@@ -717,7 +705,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.delete,
-            PGMQOperation.delete_async,
             session,
             commit,
             queue_name,
@@ -750,7 +737,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.delete_batch,
-            PGMQOperation.delete_batch_async,
             session,
             commit,
             queue_name,
@@ -787,7 +773,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.archive,
-            PGMQOperation.archive_async,
             session,
             commit,
             queue_name,
@@ -817,7 +802,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.archive_batch,
-            PGMQOperation.archive_batch_async,
             session,
             commit,
             queue_name,
@@ -844,7 +828,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.purge,
-            PGMQOperation.purge_async,
             session,
             commit,
             queue_name,
@@ -877,7 +860,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.metrics,
-            PGMQOperation.metrics_async,
             session,
             commit,
             queue_name,
@@ -924,7 +906,6 @@ class PGMQueue:
         """
         return self._execute_operation(
             PGMQOperation.metrics_all,
-            PGMQOperation.metrics_all_async,
             session,
             commit,
         )
