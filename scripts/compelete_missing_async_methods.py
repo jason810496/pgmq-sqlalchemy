@@ -3,6 +3,7 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
+#   "libcst>=1.0.0",
 # ]
 # ///
 """
@@ -12,16 +13,17 @@ For each public sync method (not starting with _), checks if there's a correspon
 async method with the same name plus '_async' suffix. If missing, generates it.
 """
 
-import ast
+import libcst as cst
 import sys
 from pathlib import Path
 import contextlib
+import shutil
 
 import tempfile
 
 
-from scripts_utils.config import QUEUE_FILE
-from scripts_utils.console import console
+from scripts_utils.config import QUEUE_FILE, QUEUE_BACKUP_FILE
+from scripts_utils.console import console, user_input
 from scripts_utils.common_ast import (
     parse_methods_info_from_target_class,
     fill_missing_methods_to_class,
@@ -33,7 +35,7 @@ from scripts_utils.queue_ast import get_async_methods_to_add
 def main():
     """Main function."""
 
-    module_tree = ast.parse(source=QUEUE_FILE.read_text(), filename=QUEUE_FILE)
+    module_tree = cst.parse_module(QUEUE_FILE.read_text())
     sync_methods, missing_async = parse_methods_info_from_target_class(
         module_tree, target_class="PGMQueue"
     )
@@ -57,13 +59,14 @@ def main():
     # create missing async method from
     async_methods_to_add = get_async_methods_to_add(sync_methods, missing_async)
     # insert back to class
-    fill_missing_methods_to_class(module_tree, "PGMQueue", async_methods_to_add)
-    module_tree = ast.fix_missing_locations(module_tree)
+    module_tree = fill_missing_methods_to_class(
+        module_tree, "PGMQueue", async_methods_to_add
+    )
 
     # write back to tmp file for comparison
     tmp_file = ""
     with tempfile.NamedTemporaryFile(mode="w+t", delete=False, suffix=".py") as f:
-        f.write(ast.unparse(module_tree))
+        f.write(module_tree.code)
         f.flush()
         tmp_file = f.name
         console.log(f"Complete missing async methods at {tmp_file}")
@@ -75,7 +78,7 @@ def main():
                 break
 
     _, missing_async_for_tmp = parse_methods_info_from_target_class(
-        ast.parse(Path(tmp_file).read_text()), "PGMQueue"
+        cst.parse_module(Path(tmp_file).read_text()), "PGMQueue"
     )
 
     if missing_async_for_tmp:
@@ -88,6 +91,13 @@ def main():
     # compare existed queue.py and tmp.py
     with contextlib.suppress(Exception):
         compare_file(QUEUE_FILE, tmp_file)
+
+    # ask whether to apply the change
+    if user_input(f"Do you want to apply change to {QUEUE_FILE}"):
+        console.log(f"Backup existed {QUEUE_FILE} at {QUEUE_BACKUP_FILE}")
+        shutil.copy(QUEUE_FILE, QUEUE_BACKUP_FILE)
+        shutil.copy(tmp_file, QUEUE_FILE)
+        console.log("Add missing async methods successfully")
 
     sys.exit(0)
 

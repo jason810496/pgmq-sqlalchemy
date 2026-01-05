@@ -58,6 +58,8 @@ dev = [
     "sphinx-autobuild>=2024.4.16",
     "sphinx-rtd-theme>=2.0.0",
     "sphinx-copybutton>=0.5.2",
+    # code transformation
+    "libcst>=1.0.0",
 ]
 
 [build-system]
