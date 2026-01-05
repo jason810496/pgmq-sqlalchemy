@@ -94,8 +94,9 @@ class AsyncFuncTransformer(cst.CSTTransformer):
         return new_node
 
     def leave_Return(self, original_node: cst.Return, updated_node: cst.Return) -> cst.Return:
-        # Wrap return value in await
-        if updated_node.value:
+        # Only wrap return value in await if it's a call expression
+        # (which is likely to be an operation that needs awaiting)
+        if updated_node.value and isinstance(updated_node.value, cst.Call):
             return updated_node.with_changes(
                 value=cst.Await(expression=updated_node.value)
             )
