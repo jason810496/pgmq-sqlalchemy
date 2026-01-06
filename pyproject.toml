@@ -78,6 +78,10 @@ fastapi-pub-sub-example = [
     "uvicorn>=0.24.0",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

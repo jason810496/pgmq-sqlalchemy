@@ -70,26 +70,71 @@ We use [pre-commit](https://pre-commit.com/) hook with [ruff](https://github.com
 
 ### Testing
 
-Run tests in local
+#### Quick Start
+
+Run tests locally with default settings:
 ```bash
 make test-local
 ```
 
-Run tests for a specific driver
+#### GitHub Actions-style Testing
+
+To test in the same way as GitHub Actions, follow these steps:
+
+1. Setup environment files (first time only):
 ```bash
-uv run pytest tests --driver=psycopg2
+make setup-env
 ```
 
-Run tests with a specific database name
+2. Start the PostgreSQL database:
 ```bash
-uv run pytest tests --driver=psycopg2 --db-name=custom_db
+make start-db
+```
+
+3. Setup a test database with pgmq extension:
+```bash
+make setup-test-db DB_NAME=my_test_db
+```
+
+4. Run tests with a specific driver and database:
+```bash
+make test-with-driver DRIVER=psycopg2 DB_NAME=my_test_db
+```
+
+5. Teardown the test database after testing:
+```bash
+make teardown-test-db DB_NAME=my_test_db
 ```
 
 Available drivers:
 - Sync drivers: `pg8000`, `psycopg2`, `psycopg`, `psycopg2cffi`
 - Async drivers: `asyncpg`
 
-Run tests in docker
+#### Run All Tests in Parallel
+
+To run tests for all drivers in parallel (similar to CI matrix):
+```bash
+make test-all
+```
+
+This command will:
+1. Set up test databases for all drivers
+2. Run tests for all drivers in parallel
+3. Clean up all test databases after completion
+
+#### Alternative Testing Methods
+
+Run tests for a specific driver (uses default database):
+```bash
+uv run pytest tests --driver=psycopg2
+```
+
+Run tests with a specific database name:
+```bash
+uv run pytest tests --driver=psycopg2 --db-name=custom_db
+```
+
+Run tests in docker:
 ```bash
 make test-docker
 ```
