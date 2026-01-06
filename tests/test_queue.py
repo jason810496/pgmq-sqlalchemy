@@ -86,13 +86,13 @@ def test_drop_non_exist_partitioned_queue(pgmq_all_variants, db_session):
 
 def test_list_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_setup_teardown
-    queues = call_method(pgmq, "list_queues", )
+    queues = call_method(pgmq, "list_queues")
     assert queue_name in queues
 
 
 def test_list_partitioned_queues(pgmq_partitioned_setup_teardown: PGMQ_WITH_QUEUE):
     pgmq, queue_name = pgmq_partitioned_setup_teardown
-    queues = call_method(pgmq, "list_queues", )
+    queues = call_method(pgmq, "list_queues")
     assert queue_name in queues
 
 
@@ -422,7 +422,7 @@ def test_metrics_all_queues(pgmq_setup_teardown: PGMQ_WITH_QUEUE):
         call_method(pgmq, "create_queue", queue_name_2)
         call_method(pgmq, "send_batch", queue_name_1, [MSG, MSG, MSG])
         call_method(pgmq, "send_batch", queue_name_2, [MSG, MSG])
-        metrics_all = call_method(pgmq, "metrics_all", )
+        metrics_all = call_method(pgmq, "metrics_all")
         queue_1 = [q for q in metrics_all if q.queue_name == queue_name_1][0]
         queue_2 = [q for q in metrics_all if q.queue_name == queue_name_2][0]
         assert queue_1.queue_length == 3
