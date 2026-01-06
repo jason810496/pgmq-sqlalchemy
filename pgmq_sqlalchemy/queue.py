@@ -125,27 +125,25 @@ class PGMQueue:
 
     def _check_pgmq_ext(self) -> None:
         """Check if the pgmq extension exists."""
-        if self.is_async:
-            self.loop.run_until_complete(self._check_pgmq_ext_async())
-        else:
-            self._execute_operation(PGMQOperation.check_pgmq_ext, session=None, commit=True)
-    
+        self._execute_operation(PGMQOperation.check_pgmq_ext, session=None, commit=True)
+
     async def _check_pgmq_ext_async(self) -> None:
         """Check if the pgmq extension exists (async version)."""
-        await self._execute_async_operation(PGMQOperation.check_pgmq_ext_async, session=None, commit=True)
+        await self._execute_async_operation(
+            PGMQOperation.check_pgmq_ext_async, session=None, commit=True
+        )
 
     def _check_pg_partman_ext(self) -> None:
         """Check if the pg_partman extension exists."""
-        if self.is_async:
-            self.loop.run_until_complete(self._check_pg_partman_ext_async())
-        else:
-            self._execute_operation(
-                PGMQOperation.check_pg_partman_ext, session=None, commit=True
-            )
-    
+        self._execute_operation(
+            PGMQOperation.check_pg_partman_ext, session=None, commit=True
+        )
+
     async def _check_pg_partman_ext_async(self) -> None:
         """Check if the pg_partman extension exists (async version)."""
-        await self._execute_async_operation(PGMQOperation.check_pg_partman_ext_async, session=None, commit=True)
+        await self._execute_async_operation(
+            PGMQOperation.check_pg_partman_ext_async, session=None, commit=True
+        )
 
     def _execute_operation(
         self,
