@@ -1,9 +1,11 @@
 import uuid
 from typing import Tuple
+from inspect import iscoroutinefunction
 
 import pytest
 
 from pgmq_sqlalchemy import PGMQueue
+from tests.constant import ASYNC_DRIVERS
 from tests._utils import check_queue_exists
 
 PGMQ_WITH_QUEUE = Tuple[PGMQueue, str]
@@ -13,18 +15,24 @@ PGMQ_WITH_QUEUE = Tuple[PGMQueue, str]
 def pgmq_all_variants(request: pytest.FixtureRequest) -> PGMQueue:
     """
     Fixture that parametrizes tests across all appropriate PGMQueue initialization methods.
-    
+
     When --driver is specified, only fixtures matching that driver type (sync/async) are used.
     Without --driver, all fixtures are used.
-    
+
     The parametrization is handled by pytest_generate_tests in conftest.py.
-    
+
     Usage:
         def test_something(pgmq_all_variants):
             pgmq: PGMQueue = pgmq_all_variants
             # test code here
     """
     # The param is set by pytest_generate_tests via indirect parametrization
+    is_async_test = iscoroutinefunction(request.function)
+    driver_from_cli = request.config.getoption("--driver")
+    if driver_from_cli and (driver_from_cli in ASYNC_DRIVERS and not is_async_test):
+        pytest.skip(
+            reason=f"Skip sync test: {request.function.__name__}, as driver: {driver_from_cli} is async"
+        )
     return request.getfixturevalue(request.param)
 
 

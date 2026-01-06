@@ -3,6 +3,8 @@ from pgmq_sqlalchemy import PGMQueue
 
 from tests.fixture_deps import pgmq_all_variants
 
+use_fixtures = [pgmq_all_variants]
+
 
 def test_construct_pgmq(pgmq_all_variants):
     pgmq: PGMQueue = pgmq_all_variants
