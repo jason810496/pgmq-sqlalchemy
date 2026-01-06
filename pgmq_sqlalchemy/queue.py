@@ -125,13 +125,23 @@ class PGMQueue:
 
     def _check_pgmq_ext(self) -> None:
         """Check if the pgmq extension exists."""
-        self._execute_operation(PGMQOperation.check_pgmq_ext, session=None, commit=True)
+        if self.is_async:
+            self.loop.run_until_complete(
+                self._execute_async_operation(PGMQOperation.check_pgmq_ext_async, session=None, commit=True)
+            )
+        else:
+            self._execute_operation(PGMQOperation.check_pgmq_ext, session=None, commit=True)
 
     def _check_pg_partman_ext(self) -> None:
         """Check if the pg_partman extension exists."""
-        self._execute_operation(
-            PGMQOperation.check_pg_partman_ext, session=None, commit=True
-        )
+        if self.is_async:
+            self.loop.run_until_complete(
+                self._execute_async_operation(PGMQOperation.check_pg_partman_ext_async, session=None, commit=True)
+            )
+        else:
+            self._execute_operation(
+                PGMQOperation.check_pg_partman_ext, session=None, commit=True
+            )
 
     def _execute_operation(
         self,
@@ -153,20 +163,6 @@ class PGMQueue:
         Returns:
             The result from the operation
         """
-        # If this is an async PGMQueue, use the async operation path
-        if self.is_async:
-            # Get the async version of the operation
-            async_op_name = op_sync.__name__ + '_async'
-            if not hasattr(PGMQOperation, async_op_name):
-                raise AttributeError(
-                    f"Async version of operation '{op_sync.__name__}' not found. "
-                    f"Expected '{async_op_name}' to exist in PGMQOperation."
-                )
-            op_async = getattr(PGMQOperation, async_op_name)
-            return self.loop.run_until_complete(
-                self._execute_async_operation(op_async, session, commit, *args, **kwargs)
-            )
-        
         if session is None:
             with self.session_maker() as s:
                 return op_sync(*args, session=s, commit=commit, **kwargs)

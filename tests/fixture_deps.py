@@ -49,10 +49,22 @@ def pgmq_setup_teardown(pgmq_all_variants: PGMQueue, db_session) -> PGMQ_WITH_QU
     pgmq = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     assert check_queue_exists(db_session, queue_name) is False
-    pgmq.create_queue(queue_name)
+    
+    # Handle both sync and async PGMQueue
+    if pgmq.is_async:
+        pgmq.loop.run_until_complete(pgmq.create_queue_async(queue_name))
+    else:
+        pgmq.create_queue(queue_name)
+    
     assert check_queue_exists(db_session, queue_name) is True
     yield pgmq, queue_name
-    pgmq.drop_queue(queue_name)
+    
+    # Handle both sync and async PGMQueue
+    if pgmq.is_async:
+        pgmq.loop.run_until_complete(pgmq.drop_queue_async(queue_name))
+    else:
+        pgmq.drop_queue(queue_name)
+    
     assert check_queue_exists(db_session, queue_name) is False
 
 
@@ -79,8 +91,20 @@ def pgmq_partitioned_setup_teardown(
     pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     assert check_queue_exists(db_session, queue_name) is False
-    pgmq.create_partitioned_queue(queue_name)
+    
+    # Handle both sync and async PGMQueue
+    if pgmq.is_async:
+        pgmq.loop.run_until_complete(pgmq.create_partitioned_queue_async(queue_name))
+    else:
+        pgmq.create_partitioned_queue(queue_name)
+    
     assert check_queue_exists(db_session, queue_name) is True
     yield pgmq, queue_name
-    pgmq.drop_queue(queue_name, partitioned=True)
+    
+    # Handle both sync and async PGMQueue
+    if pgmq.is_async:
+        pgmq.loop.run_until_complete(pgmq.drop_queue_async(queue_name, partitioned=True))
+    else:
+        pgmq.drop_queue(queue_name, partitioned=True)
+    
     assert check_queue_exists(db_session, queue_name) is False
