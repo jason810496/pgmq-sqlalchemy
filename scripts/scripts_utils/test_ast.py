@@ -104,6 +104,24 @@ class AsyncTestTransformer(cst.CSTTransformer):
 
         return updated_node
 
+    def leave_Name(self, original_node: cst.Name, updated_node: cst.Name) -> cst.Name:
+        """Transform variable name references to use async fixture names."""
+        name = updated_node.value
+
+        # Transform fixture references in function body
+        if name == "pgmq_setup_teardown":
+            return updated_node.with_changes(value="async_pgmq_setup_teardown")
+        elif name == "pgmq_partitioned_setup_teardown":
+            return updated_node.with_changes(
+                value="async_pgmq_partitioned_setup_teardown"
+            )
+        elif name == "get_session_maker":
+            return updated_node.with_changes(value="get_async_session_maker")
+        elif name == "db_session":
+            return updated_node.with_changes(value="async_db_session")
+
+        return updated_node
+
     def leave_FunctionDef(
         self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
     ) -> cst.FunctionDef:
@@ -224,10 +242,13 @@ class FillMissingTestsToModule(cst.CSTTransformer):
         new_body = []
         inserted_asyncio = False
         updated_check_queue_exists_import = False
+        updated_fixture_imports = False
+        updated_use_fixtures = False
+        seen_imports_from_utils = False
 
         for stmt in updated_node.body:
-            # Update check_queue_exists import to include check_queue_exists_async
-            if not updated_check_queue_exists_import and isinstance(
+            # Update fixture imports from tests.fixture_deps
+            if not updated_fixture_imports and isinstance(
                 stmt, cst.SimpleStatementLine
             ):
                 for item in stmt.body:
@@ -237,8 +258,82 @@ class FillMissingTestsToModule(cst.CSTTransformer):
                             and isinstance(item.module.value, cst.Name)
                             and item.module.value.value == "tests"
                             and isinstance(item.module.attr, cst.Name)
+                            and item.module.attr.value == "fixture_deps"
+                        ):
+                            # Add async fixture imports if needed
+                            if not isinstance(item.names, cst.ImportStar):
+                                has_pgmq_setup_teardown = False
+                                has_async_pgmq_setup_teardown = False
+                                has_pgmq_partitioned = False
+                                has_async_pgmq_partitioned = False
+
+                                for name in item.names:
+                                    if isinstance(name, cst.ImportAlias) and isinstance(
+                                        name.name, cst.Name
+                                    ):
+                                        if name.name.value == "pgmq_setup_teardown":
+                                            has_pgmq_setup_teardown = True
+                                        elif (
+                                            name.name.value
+                                            == "async_pgmq_setup_teardown"
+                                        ):
+                                            has_async_pgmq_setup_teardown = True
+                                        elif (
+                                            name.name.value
+                                            == "pgmq_partitioned_setup_teardown"
+                                        ):
+                                            has_pgmq_partitioned = True
+                                        elif (
+                                            name.name.value
+                                            == "async_pgmq_partitioned_setup_teardown"
+                                        ):
+                                            has_async_pgmq_partitioned = True
+
+                                # Add async versions if sync versions exist but async don't
+                                new_names = list(item.names)
+                                if (
+                                    has_pgmq_setup_teardown
+                                    and not has_async_pgmq_setup_teardown
+                                ):
+                                    new_names.append(
+                                        cst.ImportAlias(
+                                            name=cst.Name("async_pgmq_setup_teardown")
+                                        )
+                                    )
+                                if (
+                                    has_pgmq_partitioned
+                                    and not has_async_pgmq_partitioned
+                                ):
+                                    new_names.append(
+                                        cst.ImportAlias(
+                                            name=cst.Name(
+                                                "async_pgmq_partitioned_setup_teardown"
+                                            )
+                                        )
+                                    )
+
+                                if len(new_names) > len(item.names):
+                                    new_import = item.with_changes(names=new_names)
+                                    new_stmt = stmt.with_changes(body=[new_import])
+                                    new_body.append(new_stmt)
+                                    updated_fixture_imports = True
+                                    continue
+
+            # Update check_queue_exists import to include check_queue_exists_async
+            if isinstance(stmt, cst.SimpleStatementLine):
+                for item in stmt.body:
+                    if isinstance(item, cst.ImportFrom):
+                        if (
+                            isinstance(item.module, cst.Attribute)
+                            and isinstance(item.module.value, cst.Name)
+                            and item.module.value.value == "tests"
+                            and isinstance(item.module.attr, cst.Name)
                             and item.module.attr.value == "_utils"
                         ):
+                            # Skip duplicate imports from tests._utils
+                            if seen_imports_from_utils:
+                                continue
+
                             # Check if check_queue_exists is imported
                             if not isinstance(item.names, cst.ImportStar):
                                 has_check_queue_exists = False
@@ -255,21 +350,30 @@ class FillMissingTestsToModule(cst.CSTTransformer):
                                                 has_check_queue_exists_async = True
 
                                 # If check_queue_exists is imported but not check_queue_exists_async, add it
-                                if (
-                                    has_check_queue_exists
-                                    and not has_check_queue_exists_async
-                                ):
-                                    new_names = list(item.names)
-                                    new_names.append(
-                                        cst.ImportAlias(
-                                            name=cst.Name("check_queue_exists_async")
+                                if not updated_check_queue_exists_import:
+                                    if (
+                                        has_check_queue_exists
+                                        and not has_check_queue_exists_async
+                                    ):
+                                        new_names = list(item.names)
+                                        new_names.append(
+                                            cst.ImportAlias(
+                                                name=cst.Name(
+                                                    "check_queue_exists_async"
+                                                )
+                                            )
                                         )
-                                    )
-                                    new_import = item.with_changes(names=new_names)
-                                    new_stmt = stmt.with_changes(body=[new_import])
-                                    new_body.append(new_stmt)
-                                    updated_check_queue_exists_import = True
-                                    continue
+                                        new_import = item.with_changes(names=new_names)
+                                        new_stmt = stmt.with_changes(body=[new_import])
+                                        new_body.append(new_stmt)
+                                        updated_check_queue_exists_import = True
+                                        seen_imports_from_utils = True
+                                        continue
+                                    else:
+                                        # Import already has both or is fine as-is
+                                        new_body.append(stmt)
+                                        seen_imports_from_utils = True
+                                        continue
 
             # Insert asyncio import after other imports if needed
             if not inserted_asyncio and not self.has_asyncio_import:
@@ -325,6 +429,80 @@ class FillMissingTestsToModule(cst.CSTTransformer):
                             )
                             inserted_asyncio = True
                             continue
+
+            # Update use_fixtures list to include async versions
+            if not updated_use_fixtures and isinstance(stmt, cst.SimpleStatementLine):
+                for item in stmt.body:
+                    if isinstance(item, cst.Assign):
+                        for target in item.targets:
+                            if (
+                                isinstance(target.target, cst.Name)
+                                and target.target.value == "use_fixtures"
+                            ):
+                                # Check if value is a list
+                                if isinstance(item.value, cst.List):
+                                    has_pgmq_setup_teardown = False
+                                    has_async_pgmq_setup_teardown = False
+                                    has_pgmq_partitioned = False
+                                    has_async_pgmq_partitioned = False
+
+                                    for elem in item.value.elements:
+                                        if isinstance(elem.value, cst.Name):
+                                            if (
+                                                elem.value.value
+                                                == "pgmq_setup_teardown"
+                                            ):
+                                                has_pgmq_setup_teardown = True
+                                            elif (
+                                                elem.value.value
+                                                == "async_pgmq_setup_teardown"
+                                            ):
+                                                has_async_pgmq_setup_teardown = True
+                                            elif (
+                                                elem.value.value
+                                                == "pgmq_partitioned_setup_teardown"
+                                            ):
+                                                has_pgmq_partitioned = True
+                                            elif (
+                                                elem.value.value
+                                                == "async_pgmq_partitioned_setup_teardown"
+                                            ):
+                                                has_async_pgmq_partitioned = True
+
+                                    # Add async versions to the list
+                                    new_elements = list(item.value.elements)
+                                    if (
+                                        has_pgmq_setup_teardown
+                                        and not has_async_pgmq_setup_teardown
+                                    ):
+                                        new_elements.append(
+                                            cst.Element(
+                                                value=cst.Name(
+                                                    "async_pgmq_setup_teardown"
+                                                )
+                                            )
+                                        )
+                                    if (
+                                        has_pgmq_partitioned
+                                        and not has_async_pgmq_partitioned
+                                    ):
+                                        new_elements.append(
+                                            cst.Element(
+                                                value=cst.Name(
+                                                    "async_pgmq_partitioned_setup_teardown"
+                                                )
+                                            )
+                                        )
+
+                                    if len(new_elements) > len(item.value.elements):
+                                        new_list = item.value.with_changes(
+                                            elements=new_elements
+                                        )
+                                        new_assign = item.with_changes(value=new_list)
+                                        new_stmt = stmt.with_changes(body=[new_assign])
+                                        new_body.append(new_stmt)
+                                        updated_use_fixtures = True
+                                        continue
 
             new_body.append(stmt)
             # If this is a sync test function, check if we need to add async version after it
