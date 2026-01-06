@@ -12,17 +12,21 @@ PGMQ_WITH_QUEUE = Tuple[PGMQueue, str]
 @pytest.fixture(scope="function")
 def pgmq_all_variants(request: pytest.FixtureRequest) -> PGMQueue:
     """
-    Fixture that parametrizes tests across all appropriate PGMQueue initialization methods.
+    Fixture that parametrizes tests across all appropriate PGMQueue sync initialization methods.
     
-    When --driver is specified, only fixtures matching that driver type (sync/async) are used.
-    Without --driver, all fixtures are used.
+    Note: This fixture only provides sync driver variants. Async driver tests should use
+    async fixtures directly (pgmq_by_async_dsn, pgmq_by_async_engine, pgmq_by_async_session_maker).
+    
+    When --driver is specified as a sync driver, only fixtures matching that driver are used.
+    When --driver is specified as an async driver, tests using this fixture are skipped.
+    Without --driver, only sync fixtures are used.
     
     The parametrization is handled by pytest_generate_tests in conftest.py.
     
     Usage:
         def test_something(pgmq_all_variants):
             pgmq: PGMQueue = pgmq_all_variants
-            # test code here
+            # test code here (sync methods only)
     """
     # The param is set by pytest_generate_tests via indirect parametrization
     return request.getfixturevalue(request.param)

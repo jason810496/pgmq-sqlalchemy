@@ -38,7 +38,9 @@ def pytest_generate_tests(metafunc):
     if "pgmq_all_variants" in metafunc.fixturenames:
         driver_from_cli = metafunc.config.getoption("--driver")
         
-        # Define sync and async fixture variants
+        # Define sync fixture variants
+        # pgmq_all_variants is only for sync drivers because the dependent fixtures
+        # (pgmq_setup_teardown, pgmq_partitioned_setup_teardown) call sync methods
         sync_fixtures = [
             'pgmq_by_dsn',
             'pgmq_by_engine',
@@ -47,29 +49,24 @@ def pytest_generate_tests(metafunc):
             'pgmq_by_dsn_and_session_maker',
         ]
         
-        async_fixtures = [
-            'pgmq_by_async_dsn',
-            'pgmq_by_async_engine',
-            'pgmq_by_async_session_maker',
-        ]
-        
         # Determine which fixtures to use
         if not driver_from_cli:
-            # No driver specified, use all fixtures
-            fixture_params = sync_fixtures + async_fixtures
+            # No driver specified, use only sync fixtures
+            fixture_params = sync_fixtures
         elif driver_from_cli in ASYNC_DRIVERS:
-            # Async driver specified
-            fixture_params = async_fixtures
+            # Async driver specified, no fixtures to test (will skip these tests)
+            fixture_params = []
         else:
             # Sync driver specified
             fixture_params = sync_fixtures
         
-        # Parametrize the test
-        metafunc.parametrize(
-            "pgmq_all_variants",
-            fixture_params,
-            indirect=True
-        )
+        # Only parametrize if there are fixtures to use
+        if fixture_params:
+            metafunc.parametrize(
+                "pgmq_all_variants",
+                fixture_params,
+                indirect=True
+            )
 
 
 @pytest.fixture(scope="module")
