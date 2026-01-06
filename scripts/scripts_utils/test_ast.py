@@ -60,6 +60,48 @@ class AsyncTestTransformer(cst.CSTTransformer):
                         # Wrap in await
                         return cst.Await(expression=new_call)
 
+        # Transform check_queue_exists to await check_queue_exists_async
+        if isinstance(updated_node.func, cst.Name):
+            if updated_node.func.value == "check_queue_exists":
+                new_call = updated_node.with_changes(
+                    func=cst.Name("check_queue_exists_async")
+                )
+                # Also need to update the db_session argument to async_db_session
+                if updated_node.args:
+                    new_args = []
+                    for arg in updated_node.args:
+                        if (
+                            isinstance(arg.value, cst.Name)
+                            and arg.value.value == "db_session"
+                        ):
+                            new_args.append(
+                                arg.with_changes(value=cst.Name("async_db_session"))
+                            )
+                        else:
+                            new_args.append(arg)
+                    new_call = new_call.with_changes(args=new_args)
+                # Wrap in await
+                return cst.Await(expression=new_call)
+
+        return updated_node
+
+    def leave_Param(
+        self, original_node: cst.Param, updated_node: cst.Param
+    ) -> cst.Param:
+        """Transform function parameters to use async fixtures."""
+        param_name = updated_node.name.value
+
+        if param_name == "get_session_maker":
+            return updated_node.with_changes(name=cst.Name("get_async_session_maker"))
+        if param_name == "db_session":
+            return updated_node.with_changes(name=cst.Name("async_db_session"))
+        elif param_name == "pgmq_setup_teardown":
+            return updated_node.with_changes(name=cst.Name("async_pgmq_setup_teardown"))
+        elif param_name == "pgmq_partitioned_setup_teardown":
+            return updated_node.with_changes(
+                name=cst.Name("async_pgmq_partitioned_setup_teardown")
+            )
+
         return updated_node
 
     def leave_FunctionDef(
@@ -132,6 +174,7 @@ class FillMissingTestsToModule(cst.CSTTransformer):
         self.to_add_async_tests = to_add_async_tests
         self.body_statements = []
         self.has_asyncio_import = False
+        self.has_check_queue_exists_async_import = False
 
     def visit_Module(self, node: cst.Module) -> bool:
         """Collect all statements and check for asyncio import"""
@@ -149,6 +192,29 @@ class FillMissingTestsToModule(cst.CSTTransformer):
                                 ):
                                     self.has_asyncio_import = True
                                     break
+                    # Check for check_queue_exists_async import
+                    if isinstance(item, cst.ImportFrom):
+                        if (
+                            isinstance(item.module, cst.Attribute)
+                            and isinstance(item.module.value, cst.Name)
+                            and item.module.value.value == "tests"
+                            and isinstance(item.module.attr, cst.Name)
+                            and item.module.attr.value == "_utils"
+                        ):
+                            if isinstance(item.names, cst.ImportStar):
+                                self.has_check_queue_exists_async_import = True
+                            else:
+                                for name in item.names:
+                                    if isinstance(name, cst.ImportAlias):
+                                        if (
+                                            isinstance(name.name, cst.Name)
+                                            and name.name.value
+                                            == "check_queue_exists_async"
+                                        ):
+                                            self.has_check_queue_exists_async_import = (
+                                                True
+                                            )
+                                            break
         return True
 
     def leave_Module(
@@ -157,8 +223,54 @@ class FillMissingTestsToModule(cst.CSTTransformer):
         """Add async tests after their sync counterparts and add asyncio import if needed"""
         new_body = []
         inserted_asyncio = False
+        updated_check_queue_exists_import = False
 
         for stmt in updated_node.body:
+            # Update check_queue_exists import to include check_queue_exists_async
+            if not updated_check_queue_exists_import and isinstance(
+                stmt, cst.SimpleStatementLine
+            ):
+                for item in stmt.body:
+                    if isinstance(item, cst.ImportFrom):
+                        if (
+                            isinstance(item.module, cst.Attribute)
+                            and isinstance(item.module.value, cst.Name)
+                            and item.module.value.value == "tests"
+                            and isinstance(item.module.attr, cst.Name)
+                            and item.module.attr.value == "_utils"
+                        ):
+                            # Check if check_queue_exists is imported
+                            if not isinstance(item.names, cst.ImportStar):
+                                has_check_queue_exists = False
+                                has_check_queue_exists_async = False
+                                for name in item.names:
+                                    if isinstance(name, cst.ImportAlias):
+                                        if isinstance(name.name, cst.Name):
+                                            if name.name.value == "check_queue_exists":
+                                                has_check_queue_exists = True
+                                            elif (
+                                                name.name.value
+                                                == "check_queue_exists_async"
+                                            ):
+                                                has_check_queue_exists_async = True
+
+                                # If check_queue_exists is imported but not check_queue_exists_async, add it
+                                if (
+                                    has_check_queue_exists
+                                    and not has_check_queue_exists_async
+                                ):
+                                    new_names = list(item.names)
+                                    new_names.append(
+                                        cst.ImportAlias(
+                                            name=cst.Name("check_queue_exists_async")
+                                        )
+                                    )
+                                    new_import = item.with_changes(names=new_names)
+                                    new_stmt = stmt.with_changes(body=[new_import])
+                                    new_body.append(new_stmt)
+                                    updated_check_queue_exists_import = True
+                                    continue
+
             # Insert asyncio import after other imports if needed
             if not inserted_asyncio and not self.has_asyncio_import:
                 if isinstance(stmt, cst.SimpleStatementLine):
