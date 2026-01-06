@@ -3,7 +3,6 @@ import re
 import sys
 from pathlib import Path
 from typing import List, Set, Dict
-import copy
 
 
 sys.path.insert(0, str(Path(__name__).parent.parent.joinpath("scripts").resolve()))
@@ -21,7 +20,9 @@ class AsyncFuncTransformer(cst.CSTTransformer):
             # Check if any argument is PGMQOperation.method
             new_args = []
             for arg in updated_node.args:
-                if isinstance(arg.value, cst.Attribute) and isinstance(arg.value.value, cst.Name):
+                if isinstance(arg.value, cst.Attribute) and isinstance(
+                    arg.value.value, cst.Name
+                ):
                     if arg.value.value.value == "PGMQOperation":
                         # Add _async suffix to method name
                         new_attr = arg.value.with_changes(
@@ -30,31 +31,38 @@ class AsyncFuncTransformer(cst.CSTTransformer):
                         new_args.append(arg.with_changes(value=new_attr))
                         continue
                 new_args.append(arg)
-            
+
             # Replace `self._execute_operation` to `self._execute_async_operation`
             if isinstance(updated_node.func.value, cst.Name):
-                if (updated_node.func.value.value == "self" and 
-                    updated_node.func.attr.value == self.to_replace_execute_func_attr):
+                if (
+                    updated_node.func.value.value == "self"
+                    and updated_node.func.attr.value
+                    == self.to_replace_execute_func_attr
+                ):
                     updated_node = updated_node.with_changes(
                         func=updated_node.func.with_changes(
                             attr=cst.Name(self.target_execute_func_attr)
                         )
                     )
-            
+
             if new_args:
                 updated_node = updated_node.with_changes(args=new_args)
-        
+
         return updated_node
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+    def leave_FunctionDef(
+        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+    ) -> cst.FunctionDef:
         # Transform function to async
         new_node = updated_node.with_changes(
             asynchronous=cst.Asynchronous(),
-            name=cst.Name(f"{updated_node.name.value}_async")
+            name=cst.Name(f"{updated_node.name.value}_async"),
         )
 
         # Transform docstring if exists
-        if updated_node.body.body and isinstance(updated_node.body.body[0], cst.SimpleStatementLine):
+        if updated_node.body.body and isinstance(
+            updated_node.body.body[0], cst.SimpleStatementLine
+        ):
             first_stmt = updated_node.body.body[0]
             if first_stmt.body and isinstance(first_stmt.body[0], cst.Expr):
                 expr = first_stmt.body[0]
@@ -65,7 +73,6 @@ class AsyncFuncTransformer(cst.CSTTransformer):
                     else:
                         # For concatenated strings, we'll skip transformation for now
                         docstring = None
-                    
                     if docstring:
                         # Remove quotes to get actual string content
                         if docstring.startswith('"""') or docstring.startswith("'''"):
@@ -77,14 +84,16 @@ class AsyncFuncTransformer(cst.CSTTransformer):
                         else:
                             content = docstring
                             quote = '"""'
-                        
+
                         transformed_content = self.transform_docstring(content)
-                        new_docstring = f'{quote}{transformed_content}{quote}'
-                        
+                        new_docstring = f"{quote}{transformed_content}{quote}"
+
                         # Create new docstring node
-                        new_expr = expr.with_changes(value=cst.SimpleString(new_docstring))
+                        new_expr = expr.with_changes(
+                            value=cst.SimpleString(new_docstring)
+                        )
                         new_first_stmt = first_stmt.with_changes(body=[new_expr])
-                        
+
                         # Update body with new docstring
                         new_body = [new_first_stmt] + list(updated_node.body.body[1:])
                         new_node = new_node.with_changes(
@@ -93,7 +102,9 @@ class AsyncFuncTransformer(cst.CSTTransformer):
 
         return new_node
 
-    def leave_Return(self, original_node: cst.Return, updated_node: cst.Return) -> cst.Return:
+    def leave_Return(
+        self, original_node: cst.Return, updated_node: cst.Return
+    ) -> cst.Return:
         # Only wrap return value in await if it's a call expression
         # (which is likely to be an operation that needs awaiting)
         if updated_node.value and isinstance(updated_node.value, cst.Call):
