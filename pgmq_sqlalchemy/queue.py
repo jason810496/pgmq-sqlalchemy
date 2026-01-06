@@ -1,4 +1,3 @@
-import asyncio
 from typing import List, Optional
 
 from sqlalchemy import create_engine
@@ -23,14 +22,12 @@ class PGMQueue:
 
     is_async: bool = False
     is_pg_partman_ext_checked: bool = False
-    loop: asyncio.AbstractEventLoop = None
 
     def __init__(
         self,
         dsn: Optional[str] = None,
         engine: Optional[ENGINE_TYPE] = None,
         session_maker: Optional[sessionmaker] = None,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
         """
 
@@ -79,8 +76,6 @@ class PGMQueue:
             dsn (Optional[str]): Database connection string.
             engine (Optional[ENGINE_TYPE]): SQLAlchemy engine (sync or async).
             session_maker (Optional[sessionmaker]): SQLAlchemy session maker.
-            loop (Optional[asyncio.AbstractEventLoop]): Event loop for async operations.
-                If not provided, a new event loop will be created for async engines.
 
         .. note::
             | ``PGMQueue`` will **auto create** the ``pgmq`` extension ( and ``pg_partman`` extension if the method is related with **partitioned_queue** ) if it does not exist in the Postgres.
@@ -106,27 +101,6 @@ class PGMQueue:
             self.session_maker = sessionmaker(
                 bind=self.engine, class_=get_session_type(self.engine)
             )
-
-        if self.is_async:
-            if loop is not None:
-                # Use the provided event loop
-                self.loop = loop
-            else:
-                # Create a new event loop
-                self.loop = asyncio.new_event_loop()
-
-        # create pgmq extension if not exists
-        self._check_pgmq_ext()
-
-    async def _check_pgmq_ext_async(self) -> None:
-        """Check if the pgmq extension exists."""
-        async with self.session_maker() as session:
-            await PGMQOperation.check_pgmq_ext_async(session=session, commit=True)
-
-    def _check_pgmq_ext_sync(self) -> None:
-        """Check if the pgmq extension exists."""
-        with self.session_maker() as session:
-            PGMQOperation.check_pgmq_ext(session=session, commit=True)
 
     def _check_pgmq_ext(self) -> None:
         """Check if the pgmq extension exists."""
