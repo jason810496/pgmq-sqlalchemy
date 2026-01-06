@@ -55,6 +55,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc):
             "pgmq_by_async_dsn",
             "pgmq_by_async_engine",
             "pgmq_by_async_session_maker",
+            "pgmq_by_async_dsn_and_async_engine",
+            "pgmq_by_async_dsn_and_async_session_maker",
         ]
 
         # Determine which fixtures to use
@@ -208,11 +210,30 @@ def pgmq_by_dsn_and_engine(get_dsn, get_engine):
 
 
 @pytest.fixture(scope="function")
+def pgmq_by_async_dsn_and_async_engine(get_async_dsn, get_async_engine):
+    pgmq = PGMQueue(dsn=get_async_dsn, engine=get_async_engine)
+    return pgmq
+
+
+@pytest.fixture(scope="function")
 def pgmq_by_dsn_and_session_maker(get_dsn, get_session_maker):
     pgmq = PGMQueue(dsn=get_dsn, session_maker=get_session_maker)
     return pgmq
 
 
 @pytest.fixture(scope="function")
-def db_session(get_session_maker) -> Session:
-    return get_session_maker()
+def pgmq_by_async_dsn_and_async_session_maker(get_async_dsn, get_async_session_maker):
+    pgmq = PGMQueue(dsn=get_async_dsn, session_maker=get_async_session_maker)
+    return pgmq
+
+
+@pytest.fixture(scope="function")
+def db_session(get_session_maker) -> "Session":
+    with get_session_maker() as session:
+        yield session
+
+
+@pytest.fixture(scope="function")
+async def async_db_session(get_async_session_maker) -> "AsyncSession":
+    async with get_async_session_maker() as session:
+        yield session

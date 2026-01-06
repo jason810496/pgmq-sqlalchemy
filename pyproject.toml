@@ -58,7 +58,13 @@ dev = [
     "sphinx-autobuild>=2024.4.16",
     "sphinx-rtd-theme>=2.0.0",
     "sphinx-copybutton>=0.5.2",
+    # code transformation
+    "libcst>=1.0.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
 
 [build-system]
 requires = ["hatchling"]
