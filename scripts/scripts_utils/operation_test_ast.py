@@ -68,9 +68,16 @@ class AsyncTestTransformer(cst.CSTTransformer):
         """Transform function parameters to use async fixtures."""
         param_name = updated_node.name.value
 
-        # Replace get_session_maker with get_async_session_maker
         if param_name == "get_session_maker":
             return updated_node.with_changes(name=cst.Name("get_async_session_maker"))
+        if param_name == "db_session":
+            return updated_node.with_changes(name=cst.Name("async_db_session"))
+        elif param_name == "pgmq_setup_teardown":
+            return updated_node.with_changes(name=cst.Name("async_pgmq_setup_teardown"))
+        elif param_name == "pgmq_partitioned_setup_teardown":
+            return updated_node.with_changes(
+                name=cst.Name("async_pgmq_partitioned_setup_teardown")
+            )
 
         return updated_node
 
@@ -100,13 +107,34 @@ class AsyncTestTransformer(cst.CSTTransformer):
                     )
                     return updated_node.with_changes(func=new_func)
 
-        # Check if this is a get_session_maker() call
+        # Check if this is a function call
         if isinstance(updated_node.func, cst.Name):
             if updated_node.func.value == "get_session_maker":
                 # Replace with get_async_session_maker
                 return updated_node.with_changes(
                     func=cst.Name("get_async_session_maker")
                 )
+            elif updated_node.func.value == "check_queue_exists":
+                # Replace with check_queue_exists_async and update db_session arg
+                new_call = updated_node.with_changes(
+                    func=cst.Name("check_queue_exists_async")
+                )
+                # Also need to update the db_session argument to async_db_session
+                if updated_node.args:
+                    new_args = []
+                    for arg in updated_node.args:
+                        if (
+                            isinstance(arg.value, cst.Name)
+                            and arg.value.value == "db_session"
+                        ):
+                            new_args.append(
+                                arg.with_changes(value=cst.Name("async_db_session"))
+                            )
+                        else:
+                            new_args.append(arg)
+                    new_call = new_call.with_changes(args=new_args)
+                # Wrap in await
+                return cst.Await(expression=new_call)
 
         return updated_node
 

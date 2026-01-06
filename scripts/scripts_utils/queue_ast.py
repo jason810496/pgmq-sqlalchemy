@@ -73,7 +73,6 @@ class AsyncFuncTransformer(cst.CSTTransformer):
                     else:
                         # For concatenated strings, we'll skip transformation for now
                         docstring = None
-
                     if docstring:
                         # Remove quotes to get actual string content
                         if docstring.startswith('"""') or docstring.startswith("'''"):
