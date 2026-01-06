@@ -40,7 +40,9 @@ def pytest_generate_tests(metafunc):
         
         # Define sync fixture variants
         # pgmq_all_variants is only for sync drivers because the dependent fixtures
-        # (pgmq_setup_teardown, pgmq_partitioned_setup_teardown) call sync methods
+        # (pgmq_setup_teardown, pgmq_partitioned_setup_teardown) call methods like
+        # create_queue() and drop_queue() directly without await, which would fail
+        # with async PGMQ instances
         sync_fixtures = [
             'pgmq_by_dsn',
             'pgmq_by_engine',
@@ -54,7 +56,8 @@ def pytest_generate_tests(metafunc):
             # No driver specified, use only sync fixtures
             fixture_params = sync_fixtures
         elif driver_from_cli in ASYNC_DRIVERS:
-            # Async driver specified, no fixtures to test (will skip these tests)
+            # Async driver specified, skip tests using pgmq_all_variants
+            # (empty fixture list will cause pytest to skip these tests)
             fixture_params = []
         else:
             # Sync driver specified
