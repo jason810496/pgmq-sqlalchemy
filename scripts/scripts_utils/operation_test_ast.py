@@ -1,5 +1,4 @@
 import libcst as cst
-import re
 from typing import Dict, Set, List, Tuple
 from scripts_utils.common_ast import MethodInfo
 
@@ -83,7 +82,9 @@ class AsyncTestTransformer(cst.CSTTransformer):
                 if isinstance(item.item.func, cst.Name):
                     if "session_maker" in item.item.func.value:
                         # Transform to async with
-                        return updated_node.with_changes(asynchronous=cst.Asynchronous())
+                        return updated_node.with_changes(
+                            asynchronous=cst.Asynchronous()
+                        )
 
         return updated_node
 
@@ -98,7 +99,7 @@ class AsyncTestTransformer(cst.CSTTransformer):
                         attr=cst.Name(f"{updated_node.func.attr.value}_async")
                     )
                     return updated_node.with_changes(func=new_func)
-        
+
         # Check if this is a get_session_maker() call
         if isinstance(updated_node.func, cst.Name):
             if updated_node.func.value == "get_session_maker":
@@ -122,6 +123,12 @@ class AsyncTestTransformer(cst.CSTTransformer):
                         return updated_node.with_changes(
                             value=cst.Await(expression=updated_node.value)
                         )
+                    # Check if this is a session method call (session.commit, session.rollback, etc.)
+                    elif updated_node.value.func.value.value == "session":
+                        # Wrap in await
+                        return updated_node.with_changes(
+                            value=cst.Await(expression=updated_node.value)
+                        )
 
         return updated_node
 
@@ -136,20 +143,30 @@ class AsyncTestTransformer(cst.CSTTransformer):
                         return updated_node.with_changes(
                             value=cst.Await(expression=updated_node.value)
                         )
+                    # Check if this is a session method call (session.commit, session.rollback, etc.)
+                    elif updated_node.value.func.value.value == "session":
+                        # Wrap in await
+                        return updated_node.with_changes(
+                            value=cst.Await(expression=updated_node.value)
+                        )
 
         return updated_node
 
     def transform_docstring(self, docstring: str) -> str:
         """Transform docstring for async version."""
         # Replace 'synchronously' with 'asynchronously'
-        modified = docstring.replace("using PGMQOperation.", "using PGMQOperation asynchronously.")
-        
+        modified = docstring.replace(
+            "using PGMQOperation.", "using PGMQOperation asynchronously."
+        )
+
         # Add 'asynchronously' before the period if not already present
-        if "asynchronously" not in modified and not modified.endswith("asynchronously."):
+        if "asynchronously" not in modified and not modified.endswith(
+            "asynchronously."
+        ):
             modified = modified.rstrip(".")
             if modified and not modified.endswith("asynchronously"):
                 modified += " asynchronously."
-        
+
         return modified
 
 
@@ -213,7 +230,9 @@ class FillMissingTestsTransformer(cst.CSTTransformer):
                             decorators=[decorator] + list(async_test.decorators)
                         )
                     else:
-                        decorated_async = async_test.with_changes(decorators=[decorator])
+                        decorated_async = async_test.with_changes(
+                            decorators=[decorator]
+                        )
 
                     # Add empty line before async test for readability
                     new_body.append(

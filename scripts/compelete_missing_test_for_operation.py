@@ -32,7 +32,7 @@ from scripts_utils.operation_test_ast import (
 
 def main():
     """Main function."""
-    
+
     # Define test file path
     PROJECT_ROOT = Path(__file__).parent.parent
     TEST_FILE = PROJECT_ROOT / "tests" / "test_operation.py"
@@ -64,7 +64,7 @@ def main():
 
     # Create missing async tests
     async_tests_to_add = get_async_tests_to_add(all_tests, missing_async)
-    
+
     # Insert back to module
     module_tree = fill_missing_tests_to_module(module_tree, async_tests_to_add)
 
