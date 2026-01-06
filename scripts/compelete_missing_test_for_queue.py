@@ -25,7 +25,7 @@ import tempfile
 
 from scripts_utils.config import TEST_QUEUE_FILE, TEST_QUEUE_BACKUP_FILE
 from scripts_utils.console import console, user_input
-from scripts_utils.test_ast import (
+from scripts_utils.queue_test_ast import (
     parse_test_functions_from_module,
     get_async_tests_to_add,
     fill_missing_tests_to_module,
