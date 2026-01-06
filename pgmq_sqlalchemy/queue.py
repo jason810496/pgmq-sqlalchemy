@@ -111,11 +111,10 @@ class PGMQueue:
         async with self.session_maker() as session:
             await PGMQOperation.check_pg_partman_ext_async(session=session, commit=True)
 
-    def _check_pg_partman_ext_sync(self) -> None:
+    def _check_pg_partman_ext(self) -> None:
         """Check if the pg_partman extension exists."""
         with self.session_maker() as session:
             PGMQOperation.check_pg_partman_ext(session=session, commit=True)
-
 
     def _execute_operation(
         self,
@@ -1059,7 +1058,6 @@ class PGMQueue:
 
         return self._execute_operation(
             PGMQOperation.set_vt,
-
             session,
             commit,
             queue_name,
