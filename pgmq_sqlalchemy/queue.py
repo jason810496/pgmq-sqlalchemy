@@ -127,10 +127,22 @@ class PGMQueue:
         """Check if the pgmq extension exists."""
         self._execute_operation(PGMQOperation.check_pgmq_ext, session=None, commit=True)
 
+    async def _check_pgmq_ext_async(self) -> None:
+        """Check if the pgmq extension exists (async version)."""
+        await self._execute_async_operation(
+            PGMQOperation.check_pgmq_ext_async, session=None, commit=True
+        )
+
     def _check_pg_partman_ext(self) -> None:
         """Check if the pg_partman extension exists."""
         self._execute_operation(
             PGMQOperation.check_pg_partman_ext, session=None, commit=True
+        )
+
+    async def _check_pg_partman_ext_async(self) -> None:
+        """Check if the pg_partman extension exists (async version)."""
+        await self._execute_async_operation(
+            PGMQOperation.check_pg_partman_ext_async, session=None, commit=True
         )
 
     def _execute_operation(
@@ -342,7 +354,7 @@ class PGMQueue:
 
         """
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
-        self._check_pg_partman_ext()
+        await self._check_pg_partman_ext_async()
 
         return await self._execute_async_operation(
             PGMQOperation.create_partitioned_queue_async,
@@ -451,7 +463,7 @@ class PGMQueue:
         """
         # check if the pg_partman extension exists before dropping a partitioned queue at runtime
         if partitioned:
-            self._check_pg_partman_ext()
+            await self._check_pg_partman_ext_async()
 
         return await self._execute_async_operation(
             PGMQOperation.drop_queue_async,
