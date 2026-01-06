@@ -229,9 +229,11 @@ def pgmq_by_async_dsn_and_async_session_maker(get_async_dsn, get_async_session_m
 
 @pytest.fixture(scope="function")
 def db_session(get_session_maker) -> "Session":
-    return get_session_maker()
+    with get_session_maker() as session:
+        yield session
 
 
 @pytest.fixture(scope="function")
 async def async_db_session(get_async_session_maker) -> "AsyncSession":
-    return await get_async_session_maker()
+    async with get_async_session_maker() as session:
+        yield session

@@ -33,6 +33,39 @@ class ParseTestFunctionsVisitor(cst.CSTVisitor):
 class AsyncTestTransformer(cst.CSTTransformer):
     """Transform sync test to async test"""
 
+    def leave_With(self, original_node: cst.With, updated_node: cst.With) -> cst.With:
+        """Transform 'with get_session_maker' to 'async with get_async_session_maker'"""
+        # Check if any with item uses get_session_maker or get_async_session_maker
+        # (get_async_session_maker might already be transformed by leave_Name)
+        new_items = []
+        has_session_maker = False
+
+        for item in updated_node.items:
+            if isinstance(item.item, cst.Call):
+                if isinstance(item.item.func, cst.Name):
+                    func_name = item.item.func.value
+                    if func_name in ("get_session_maker", "get_async_session_maker"):
+                        has_session_maker = True
+                        # Ensure it's get_async_session_maker
+                        if func_name == "get_session_maker":
+                            new_call = item.item.with_changes(
+                                func=cst.Name("get_async_session_maker")
+                            )
+                            new_items.append(item.with_changes(item=new_call))
+                        else:
+                            new_items.append(item)
+                        continue
+            new_items.append(item)
+
+        # Only make it async if it uses session maker
+        if has_session_maker:
+            return updated_node.with_changes(
+                asynchronous=cst.Asynchronous(), items=new_items
+            )
+        else:
+            # Keep as regular with statement for other cases (like pytest.raises)
+            return updated_node.with_changes(items=new_items)
+
     def leave_Call(self, original_node: cst.Call, updated_node: cst.Call) -> cst.Call:
         """Transform method calls to async versions with await"""
         if isinstance(updated_node.func, cst.Attribute):
@@ -188,7 +221,7 @@ class AsyncTestTransformer(cst.CSTTransformer):
 class FillMissingTestsToModule(cst.CSTTransformer):
     """CST Transformer to fill missing async tests to test module"""
 
-    def __init__(self, to_add_async_tests: Dict[str, TestInfo]):
+    def __init__(self, to_add_async_tests: Dict[str, Tuple[TestInfo, TestInfo]]):
         self.to_add_async_tests = to_add_async_tests
         self.body_statements = []
         self.has_asyncio_import = False
@@ -247,6 +280,8 @@ class FillMissingTestsToModule(cst.CSTTransformer):
         seen_imports_from_utils = False
 
         for stmt in updated_node.body:
+            # This section is removed - we'll add async tests after sync tests in the main loop below
+
             # Update fixture imports from tests.fixture_deps
             if not updated_fixture_imports and isinstance(
                 stmt, cst.SimpleStatementLine
@@ -505,15 +540,40 @@ class FillMissingTestsToModule(cst.CSTTransformer):
                                         continue
 
             new_body.append(stmt)
-            # If this is a sync test function, check if we need to add async version after it
+            # If this is a sync test function, check if we need to add async versions after it
             if isinstance(stmt, cst.FunctionDef):
                 func_name = stmt.name.value
                 if func_name in self.to_add_async_tests:
-                    # Add blank line before async test
+                    (
+                        async_test_with_decorator,
+                        async_test_without_decorator,
+                    ) = self.to_add_async_tests[func_name]
+
+                    # Add decorator for first version
+                    decorator = cst.Decorator(
+                        decorator=cst.Attribute(
+                            value=cst.Attribute(
+                                value=cst.Name("pytest"), attr=cst.Name("mark")
+                            ),
+                            attr=cst.Name("asyncio"),
+                        )
+                    )
+
+                    # First async test WITH decorator
+                    async_test_node = async_test_with_decorator.node
+                    if async_test_node.decorators:
+                        decorated_async = async_test_node.with_changes(
+                            decorators=[decorator] + list(async_test_node.decorators)
+                        )
+                    else:
+                        decorated_async = async_test_node.with_changes(
+                            decorators=[decorator]
+                        )
+
+                    # Add blank lines and first async test (with decorator)
                     new_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
                     new_body.append(cst.EmptyLine(whitespace=cst.SimpleWhitespace("")))
-                    # Add the async version right after the sync version
-                    new_body.append(self.to_add_async_tests[func_name].node)
+                    new_body.append(decorated_async)
 
         return updated_node.with_changes(body=new_body)
 
@@ -570,22 +630,26 @@ def transform_to_async_test(
 
 def get_async_tests_to_add(
     sync_tests: List[TestInfo], missing_async: Set[str]
-) -> Dict[str, TestInfo]:
-    """Generate async test functions for missing tests"""
+) -> Dict[str, Tuple[TestInfo, TestInfo]]:
+    """Generate async test functions for missing tests.
+
+    Returns a dict mapping sync test name to a tuple of (async_test_with_decorator, async_test_without_decorator)
+    """
     transformer = AsyncTestTransformer()
-    async_tests: Dict[str, TestInfo] = {}
+    async_tests: Dict[str, Tuple[TestInfo, TestInfo]] = {}
 
     for test_info in sync_tests:
         if test_info.name in missing_async and not test_info.is_async:
-            async_tests[test_info.name] = transform_to_async_test(
-                transformer, test_info
-            )
+            # Generate the async test
+            async_test = transform_to_async_test(transformer, test_info)
+            # Store both versions (we'll add decorators later in the transformer)
+            async_tests[test_info.name] = (async_test, async_test)
 
     return async_tests
 
 
 def fill_missing_tests_to_module(
-    module_tree: cst.Module, to_add_async_tests: Dict[str, TestInfo]
+    module_tree: cst.Module, to_add_async_tests: Dict[str, Tuple[TestInfo, TestInfo]]
 ) -> cst.Module:
     """Fill missing async tests to module"""
     transformer = FillMissingTestsToModule(to_add_async_tests=to_add_async_tests)

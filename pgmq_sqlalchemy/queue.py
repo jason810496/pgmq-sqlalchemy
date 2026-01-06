@@ -107,16 +107,6 @@ class PGMQueue:
                 bind=self.engine, class_=get_session_type(self.engine)
             )
 
-    async def _check_pg_partman_ext_async(self) -> None:
-        """Check if the pg_partman extension exists."""
-        async with self.session_maker() as session:
-            await PGMQOperation.check_pg_partman_ext_async(session=session, commit=True)
-
-    def _check_pg_partman_ext(self) -> None:
-        """Check if the pg_partman extension exists."""
-        with self.session_maker() as session:
-            PGMQOperation.check_pg_partman_ext(session=session, commit=True)
-
     def _execute_operation(
         self,
         op_sync,
@@ -273,7 +263,9 @@ class PGMQueue:
 
         """
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
-        self._check_pg_partman_ext()
+        self._execute_operation(
+            PGMQOperation.check_pg_partman_ext, session=session, commit=False
+        )
 
         return self._execute_operation(
             PGMQOperation.create_partitioned_queue,
@@ -326,7 +318,9 @@ class PGMQueue:
 
         """
         # check if the pg_partman extension exists before creating a partitioned queue at runtime
-        self._check_pg_partman_ext()
+        await self._execute_async_operation(
+            PGMQOperation.check_pg_partman_ext_async, session=session, commit=False
+        )
 
         return await self._execute_async_operation(
             PGMQOperation.create_partitioned_queue_async,
@@ -398,7 +392,9 @@ class PGMQueue:
         """
         # check if the pg_partman extension exists before dropping a partitioned queue at runtime
         if partitioned:
-            self._check_pg_partman_ext()
+            self._execute_operation(
+                PGMQOperation.check_pg_partman_ext, session=session, commit=False
+            )
 
         return self._execute_operation(
             PGMQOperation.drop_queue,
@@ -435,7 +431,9 @@ class PGMQueue:
         """
         # check if the pg_partman extension exists before dropping a partitioned queue at runtime
         if partitioned:
-            self._check_pg_partman_ext()
+            await self._execute_async_operation(
+                PGMQOperation.check_pg_partman_ext_async, session=session, commit=False
+            )
 
         return await self._execute_async_operation(
             PGMQOperation.drop_queue_async,

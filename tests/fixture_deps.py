@@ -92,7 +92,7 @@ async def async_pgmq_setup_teardown(
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     assert await check_queue_exists_async(async_db_session, queue_name) is False
     await pgmq.create_queue_async(queue_name)
-    assert check_queue_exists_async(async_db_session, queue_name) is True
+    assert await check_queue_exists_async(async_db_session, queue_name) is True
     yield pgmq, queue_name
     await pgmq.drop_queue_async(queue_name)
     assert await check_queue_exists_async(async_db_session, queue_name) is False
@@ -151,8 +151,8 @@ async def async_pgmq_partitioned_setup_teardown(
     pgmq: PGMQueue = pgmq_all_variants
     queue_name = f"test_queue_{uuid.uuid4().hex}"
     assert await check_queue_exists_async(async_db_session, queue_name) is False
-    await pgmq.create_partitioned_queue(queue_name)
-    assert check_queue_exists_async(async_db_session, queue_name) is True
+    await pgmq.create_partitioned_queue_async(queue_name)
+    assert await check_queue_exists_async(async_db_session, queue_name) is True
     yield pgmq, queue_name
-    await pgmq.drop_queue(queue_name, partitioned=True)
+    await pgmq.drop_queue_async(queue_name, partitioned=True)
     assert await check_queue_exists_async(async_db_session, queue_name) is False
