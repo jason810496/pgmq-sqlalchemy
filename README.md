@@ -1,6 +1,7 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-![PyPI - Version](https://img.shields.io/pypi/v/pgmq-sqlalchemy)
+[![PyPI - Version](https://img.shields.io/pypi/v/pgmq-sqlalchemy.svg)](https://pypi.org/project/pgmq-sqlalchemy/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/pgmq-sqlalchemy.svg)](https://pypi.org/project/pgmq-sqlalchemy/)
 [![PyPI - License](https://img.shields.io/pypi/l/pgmq-sqlalchemy.svg)](https://github.com/jason810496/pgmq-sqlalchemy/blob/main/LICENSE)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pgmq-sqlalchemy.svg)](https://pypi.python.org/pypi/pgmq-sqlalchemy)
 [![codecov](https://codecov.io/gh/jason810496/pgmq-sqlalchemy/graph/badge.svg?token=C5ZVZCW7TE)](https://codecov.io/gh/jason810496/pgmq-sqlalchemy)
