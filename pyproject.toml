@@ -69,8 +69,8 @@ test = [
 docs = [
     "sphinx>=7.3.7",
     "sphinx-autobuild>=2024.4.16",
-    "sphinx-rtd-theme>=2.0.0",
     "sphinx-copybutton>=0.5.2",
+    "furo>=2025.12.19",
 ]
 fastapi-pub-sub-example = [
     "fastapi>=0.104.0",
