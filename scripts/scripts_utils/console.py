@@ -19,7 +19,7 @@ console = Console(
 
 
 def user_input(msg: str) -> bool:
-    console.log(f"{msg} (y/n)")
+    console.log(f"{msg} (Y/n)")
     s = input()
     if len(s) != 1:
         return False

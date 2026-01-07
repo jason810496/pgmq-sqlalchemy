@@ -38,28 +38,44 @@ pg8000 = ["pg8000>=1.31.2"]
 psycopg = ["psycopg>=3.2.1"]
 psycopg2-binary = ["psycopg2-binary>=2.9.9"]
 psycopg2cffi = ["psycopg2cffi>=2.9.0"]
+
+# Include dependencies by `uv sync --group dev`
+[dependency-groups]
 dev = [
-    # postgresql drivers
+    {include-group = "postgresql-drivers"},
+    {include-group = "test"},
+    {include-group = "docs"},
+    {include-group = "fastapi-pub-sub-example"},
+    "rich>=14.2.0",
+    "ruff>=0.14.10",
+    "libcst>=1.8.6",
+]
+postgresql-drivers = [
     "asyncpg>=0.29.0",
     "greenlet>=3.0.3",
     "pg8000>=1.31.2",
     "psycopg>=3.2.1",
     "psycopg2-binary>=2.9.9",
     "psycopg2cffi>=2.9.0",
-    # testing
+]
+test = [
     "pytest>=7.4.4,<8.0",
     "pytest-asyncio>=0.23.8",
     "pytest-lazy-fixture>=0.6.3",
     "pytest-cov>=5.0.0",
     "pytest-xdist>=3.6.1",
     "filelock>=3.15.4",
-    # docs
+]
+docs = [
     "sphinx>=7.3.7",
     "sphinx-autobuild>=2024.4.16",
     "sphinx-rtd-theme>=2.0.0",
     "sphinx-copybutton>=0.5.2",
-    # code transformation
-    "libcst>=1.0.0",
+]
+fastapi-pub-sub-example = [
+    "fastapi>=0.104.0",
+    "httpx>=0.28.1",
+    "uvicorn>=0.24.0",
 ]
 
 [tool.pytest.ini_options]

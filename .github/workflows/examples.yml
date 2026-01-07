@@ -1,0 +1,74 @@
+name: Examples Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'examples/**'
+      - 'examples_tests/**'
+      - 'pgmq_sqlalchemy/**'
+      - '.github/workflows/examples.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'examples/**'
+      - 'examples_tests/**'
+      - 'pgmq_sqlalchemy/**'
+      - '.github/workflows/examples.yml'
+
+jobs:
+  test-examples:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    
+    name: Test Examples (Python ${{ matrix.python-version }})
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies
+        run: |
+          uv sync --all-groups --no-group docs
+      
+      - name: Start PostgreSQL
+        run: |
+          cp pgmq_postgres.template.env pgmq_postgres.env
+          cp pgmq_tests.template.env pgmq_tests.env
+          make start-db
+      
+      - name: Setup database for examples tests
+        run: |
+          docker compose exec -T pgmq_postgres psql -U postgres -c "CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;"
+      
+      - name: Run examples tests
+        run: |
+          uv run pytest examples_tests --cov=examples --cov-report=xml:coverage-examples-py${{ matrix.python-version }}.xml -vss
+      
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-examples-py${{ matrix.python-version }}
+          path: coverage-examples-py${{ matrix.python-version }}.xml
+          retention-days: 1
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down
