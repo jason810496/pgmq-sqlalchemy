@@ -24,7 +24,7 @@ class CmdArg:
 
     @property
     def layout_name(self):
-        "\n".join(self.cmd) + self.panel_title
+        return "_".join(self.cmd) + "_" + self.panel_title
 
 
 class ProcessInstance:
@@ -40,6 +40,24 @@ class ProcessInstance:
         console.print(
             f"[green]{cmd_arg.panel_title} started with PID: {self.process.pid}[/green]"
         )
+
+    @property
+    def alive(self) -> bool:
+        # if p.poll() is None, which means the process is not stop
+        return self.process.poll() is None
+
+    @property
+    def pid(self) -> int:
+        return self.process.pid
+
+    def kill(self) -> None:
+        return self.process.kill()
+
+    def terminate(self) -> None:
+        return self.process.terminate()
+
+    def wait(self, timeout: float | None = None):
+        return self.process.wait(timeout=timeout)
 
     @staticmethod
     def set_non_blocking(fd) -> None:
@@ -96,18 +114,18 @@ class ProcessInstance:
         if stdout_line is None and stderr_line is None:
             return None
 
-        content = ""
-
+        # Append new output to buffer
         if stdout_line:
             self.panel_output_buffer.append(stdout_line)
-            content += "\n".join(self.panel_output_buffer)
         if stderr_line:
             self.panel_output_buffer.append(f"[red]{stderr_line}[/red]")
-            content += "\n".join(self.panel_output_buffer)
 
-        if len(self.panel_output_buffer) > max_lines:
+        # Remove old lines if buffer exceeds max_lines
+        while len(self.panel_output_buffer) > max_lines:
             self.panel_output_buffer.popleft()
 
+        # Build content from buffer
+        content = "\n".join(self.panel_output_buffer)
         return Panel(content, title=self.panel_title)
 
 
@@ -117,13 +135,13 @@ class MultiSubprocessesRenderer:
         cmds: list[CmdArg],
         stop_condition_callable: Callable[PS, bool] | None = None,
         render_interval: float = 0.05,
-        init_subprocesses_wait_time: int = 2,
         max_lines: int = 50,
+        show_pid_in_panel_title: bool = True,
     ) -> None:
         self.cmds = cmds
         self.render_interval = render_interval
-        self.init_subprocesses_wait_time = init_subprocesses_wait_time
         self.max_lines = max_lines
+        self.show_pid_in_panel_title = show_pid_in_panel_title
         if stop_condition_callable is None:
             self.stop_condition_callable = lambda: False
         else:
@@ -149,6 +167,9 @@ class MultiSubprocessesRenderer:
         self.process_instances = [
             ProcessInstance(cmd_arg, self.console) for cmd_arg in self.cmds
         ]
+        if self.show_pid_in_panel_title:
+            for p in self.process_instances:
+                p.panel_title = f"{p.panel_title}: {p.pid}"
 
     def _update_processes_panel_output_to_layout(self):
         for p in self.process_instances:
@@ -157,16 +178,22 @@ class MultiSubprocessesRenderer:
 
     @property
     def _any_process_is_not_stop(self) -> bool:
-        # if p.poll() is None, which means the process is not stop
         for p in self.process_instances:
-            if p.process.poll() is None:
+            if p.alive:
                 return True
+        return False
 
-    def __enter__(self):
-        self._init_layouts()
-        self._init_processes()
-        time.sleep(self.init_subprocesses_wait_time)
+    def _graceful_cleanup_processes(self) -> None:
+        for p in self.process_instances:
+            # if the process is still running, kill it
+            if p.alive:
+                p.terminate()
+                try:
+                    p.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    p.kill()
 
+    def start_render(self) -> None:
         with Live(
             self.layout, screen=True, redirect_stdout=False, redirect_stderr=False
         ) as live:
@@ -181,13 +208,22 @@ class MultiSubprocessesRenderer:
                 if self.stop_condition_callable():
                     break
 
+    def __enter__(self):
+        self._init_layouts()
+        self._init_processes()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        for p in self.process_instances:
-            # if the process is not yet stop
-            if p.process.poll() is not None:
-                p.process.kill()
+        if exc_type is KeyboardInterrupt:
+            self.console.print(
+                "\n[yellow]Keyboard Interrupt detected.\nCleaning up all processes before continuing...[/yellow]"
+            )
+            self._graceful_cleanup_processes()
+            return True
+
+        self._graceful_cleanup_processes()
+        self.console.print("Reach stop_condition_callable, stop rendering.")
+        return False
 
 
 # 2. Main script to manage the display and processes
@@ -204,4 +240,4 @@ if __name__ == "__main__":
             ),
         ]
     ) as renderer:
-        renderer.console.print("[bold green]All processes finished![/bold green]")
+        renderer.start_render()
