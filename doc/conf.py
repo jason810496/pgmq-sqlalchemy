@@ -35,7 +35,17 @@ extensions = [
     "sphinx.ext.napoleon",
 ]
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
+html_theme_options = {
+    "light_css_variables": {
+        "color-brand-primary": "#2980b9",
+        "color-brand-content": "#2980b9",
+    },
+    "dark_css_variables": {
+        "color-brand-primary": "#4c9aff",
+        "color-brand-content": "#4c9aff",
+    },
+}
 project = "pgmq-sqlalchemy"
 copyright = f'2024-{time.strftime("%Y")}, the pgmq-sqlalchemy developers'
 
