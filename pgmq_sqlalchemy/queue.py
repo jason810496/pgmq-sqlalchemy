@@ -198,9 +198,6 @@ class PGMQueue:
         commit: bool = True,
     ) -> None:
         """
-        .. _unlogged_table: https://www.postgresql.org/docs/current/sql-createtable.html#SQL-CREATETABLE-UNLOGGED
-        .. |unlogged_table| replace:: **UNLOGGED TABLE**
-
         **Create a new queue.**
 
         * if ``unlogged`` is ``True``, the queue will be created as an |unlogged_table|_ .
@@ -286,9 +283,6 @@ class PGMQueue:
         commit: bool = True,
     ) -> None:
         """Create a new **partitioned** queue.
-
-        .. _pgmq_partitioned_queue: https://github.com/tembo-io/pgmq?tab=readme-ov-file#partitioned-queues
-        .. |pgmq_partitioned_queue| replace:: **PGMQ: Partitioned Queues**
 
         .. code-block:: python
 
@@ -413,9 +407,6 @@ class PGMQueue:
         commit: bool = True,
     ) -> bool:
         """Drop a queue.
-
-        .. _drop_queue_method: ref:`pgmq_sqlalchemy.PGMQueue.drop_queue`
-        .. |drop_queue_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.drop_queue`
 
         .. code-block:: python
 
@@ -700,12 +691,6 @@ class PGMQueue:
         commit: bool = True,
     ) -> Optional[Message]:
         """
-        .. _for_update_skip_locked: https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE
-        .. |for_update_skip_locked| replace:: **FOR UPDATE SKIP LOCKED**
-
-        .. _read_method: ref:`pgmq_sqlalchemy.PGMQueue.read`
-        .. |read_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.read`
-
         Read a message from the queue.
 
         Returns:
@@ -929,10 +914,6 @@ class PGMQueue:
     ) -> Optional[List[Message]]:
         """
 
-        .. _read_with_poll_method: ref:`pgmq_sqlalchemy.PGMQueue.read_with_poll`
-        .. |read_with_poll_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.read_with_poll`
-
-
         | Read messages from a queue with long-polling.
         |
         | When the queue is empty, the function block at most ``max_poll_seconds`` seconds.
@@ -1074,9 +1055,6 @@ class PGMQueue:
         commit: bool = True,
     ) -> Optional[Message]:
         """
-        .. _set_vt_method: ref:`pgmq_sqlalchemy.PGMQueue.set_vt`
-        .. |set_vt_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.set_vt`
-
         Set the visibility timeout for a message.
 
         Args:
@@ -1231,9 +1209,6 @@ class PGMQueue:
         """
         Delete a message from the queue.
 
-        .. _delete_method: ref:`pgmq_sqlalchemy.PGMQueue.delete`
-        .. |delete_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.delete`
-
         * Raises an error if the ``queue_name`` does not exist.
         * Returns ``True`` if the message is deleted successfully.
         * If the message does not exist, returns ``False``.
@@ -1295,9 +1270,6 @@ class PGMQueue:
     ) -> List[int]:
         """
         Delete a batch of messages from the queue.
-
-        .. _delete_batch_method: ref:`pgmq_sqlalchemy.PGMQueue.delete_batch`
-        .. |delete_batch_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.delete_batch`
 
         .. note::
             | Instead of return `bool` like |delete_method|_,
@@ -1363,10 +1335,6 @@ class PGMQueue:
     ) -> bool:
         """
         Archive a message from a queue.
-
-        .. _archive_method: ref:`pgmq_sqlalchemy.PGMQueue.archive`
-        .. |archive_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.archive`
-
 
         * Message will be deleted from the queue and moved to the archive table.
             * Will be deleted from ``pgmq.q_<queue_name>`` and be inserted into the ``pgmq.a_<queue_name>`` table.
@@ -1613,12 +1581,6 @@ class PGMQueue:
         commit: bool = True,
     ) -> Optional[List[QueueMetrics]]:
         """
-
-        .. _read_committed_isolation_level: https://www.postgresql.org/docs/current/transaction-iso.html#XACT-READ-COMMITTED
-        .. |read_committed_isolation_level| replace:: **READ COMMITTED**
-
-        .. _metrics_all_method: ref:`pgmq_sqlalchemy.PGMQueue.metrics_all`
-        .. |metrics_all_method| replace:: :py:meth:`~pgmq_sqlalchemy.PGMQueue.metrics_all`
 
         Get metrics for all queues.
 
