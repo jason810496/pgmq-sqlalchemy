@@ -21,7 +21,6 @@ Or using **Docker Compose** to start Postgres with ``PGMQ`` extension:
     ``docker-compose.yml``:
         .. code-block:: yaml
 
-            version: '3.8'
             services:
             pgmq_postgres:
                 container_name: pgmq_postgres
@@ -262,6 +261,14 @@ Combining business logic with PGMQ operations in a single transaction:
     .. seealso::
 
         See `API Reference <api-reference>`_ for the complete list of available operations in the ``op`` module.
+
+
+FastAPI Pub/Sub Example
+-----------------------
+
+For a complete, real-world example that combines ``PGMQOperation`` (``op``)
+with FastAPI and ``PGMQueue`` for asynchronous consumption, see
+`FastAPI Pub/Sub Example with PGMQ <example-with-fastapi-pub-sub>`_.
 
 
         
