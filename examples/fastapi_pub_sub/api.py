@@ -22,6 +22,7 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres"
 )
 QUEUE_NAME = os.getenv("QUEUE_NAME", "order_queue")
+API_PORT = int(os.getenv("API_PORT", "8000"))
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL)
@@ -207,4 +208,4 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=API_PORT)

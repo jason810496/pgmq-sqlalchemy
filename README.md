@@ -19,6 +19,8 @@ More flexible [PGMQ Postgres extension](https://github.com/tembo-io/pgmq) Python
    * [Getting Started](#getting-started)
       * [Postgres Setup](#postgres-setup)
       * [Usage](#usage)
+      * [Transaction Usage](#transaction-usage)
+      * [FastAPI Pub/Sub Example with tests](#fastapi-pubsub-example)
    * [Issue/ Contributing / Development](#issue-contributing--development)
    * [TODO](#todo)
 
@@ -26,11 +28,12 @@ More flexible [PGMQ Postgres extension](https://github.com/tembo-io/pgmq) Python
 ## Features
 
 - Supports **async** and **sync** `engines` and `sessionmakers`, or built from `dsn`.
-- **Automatically** creates `pgmq` (or `pg_partman`) extension on the database if not exists.
 - Supports **all postgres DBAPIs supported by sqlalchemy**.
     > e.g. `psycopg`, `psycopg2`, `asyncpg` .. <br>
     > See [SQLAlchemy Postgresql Dialects](https://docs.sqlalchemy.org/en/20/dialects/postgresql.html)
 - **Transaction-friendly operations** via the `op` module for combining PGMQ with your business logic in the same transaction.
+- [Fully tested across all **supported DBAPIs** in both **async** and **sync** modes](https://github.com/jason810496/pgmq-sqlalchemy/actions/workflows/codecov.yml).
+- Battle-tested with **[real-world FastAPI Pub/Sub examples](./examples/fastapi_pub_sub/README.md)** and **[corresponding tests](https://github.com/jason810496/pgmq-sqlalchemy/actions/workflows/examples.yml)**.
 
 ## Installation
 
@@ -153,7 +156,21 @@ with SessionLocal() as session:
 
 > See [Transaction Usage Documentation](https://pgmq-sqlalchemy.readthedocs.io/en/latest/getting-started.html#using-transaction-friendly-operations) for more examples.
 
+### FastAPI Pub/Sub Example with tests
+
+See the [FastAPI Pub/Sub Example](./examples/fastapi_pub_sub/README.md) for a complete example of using `pgmq-sqlalchemy` in a FastAPI application with asynchronous message consumption and tests.
+
 ## Issue/ Contributing / Development 
 
 Welcome to open an issue or pull request ! <br>
 See [`Development` on Online Document](https://pgmq-sqlalchemy.readthedocs.io/en/latest/) or [CONTRIBUTING.md](.github/CONTRIBUTING.md) for more information.
+
+## TODO
+
+- [ ] [Alembic](https://alembic.sqlalchemy.org/en/latest/) compatible migration scripts for PGMQ extension and schema setup, upgrade, downgrade.
+- [ ] Compatibility tests with PGMQ across different PGMQ versions.
+- [ ] More examples
+- [ ] Smoothen contributing process with custom script for one step setup
+- [ ] Mypy strict type checking
+- [ ] Enable more ruff rules
+- [ ] Drop Python 3.9 support in next minor release

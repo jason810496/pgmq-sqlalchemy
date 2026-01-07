@@ -26,11 +26,12 @@ Features
 --------
 
 * Supports **async** and **sync** ``engines``, ``sessionmakers``, or directly constructed from ``dsn``.
-* **Automatically** creates ``pgmq`` extension on the database if not exists.
 * Supports all Postgres DBAPIs supported by ``SQLAlchemy``.
     * Examples: ``psycopg``, ``psycopg2``, ``asyncpg``
     * See `SQLAlchemy Postgresql Dialects <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html>`_
-
+* **Transaction-friendly operations** via the `op` module for combining PGMQ with your business logic in the same transaction.
+* `Fully tested across all supported DBAPIs in both async and sync modes <https://github.com/jason810496/pgmq-sqlalchemy/actions/workflows/codecov.yml>`_.
+* Battle-tested with `real-world FastAPI Pub/Sub examples <https://github.com/jason810496/pgmq-sqlalchemy/tree/main/examples/fastapi_pub_sub/README.md>`_ and `corresponding tests <https://github.com/jason810496/pgmq-sqlalchemy/actions/workflows/examples.yml>`_.
 
 Table of Contents
 -----------------
@@ -41,6 +42,7 @@ Table of Contents
     self
     installation
     getting-started
+    example-with-fastapi-pub-sub
     api-reference
     development
     release
