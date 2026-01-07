@@ -58,7 +58,7 @@ jobs:
             # Create unique coverage file name
             export COVERAGE_FILE=".coverage.py${{ matrix.python-version }}.${{ matrix.driver }}"
 
-            uv run pytest tests --driver=${{ matrix.driver }} --db-name=${DB_NAME} --cov=pgmq_sqlalchemy.queue --cov-report=xml:coverage-py${{ matrix.python-version }}-${{ matrix.driver }}.xml
+            uv run pytest tests --driver=${{ matrix.driver }} --db-name=${DB_NAME} --cov=pgmq_sqlalchemy.queue --cov=pgmq_sqlalchemy.operation --cov-report=xml:coverage-py${{ matrix.python-version }}-${{ matrix.driver }}.xml
         - name: Upload coverage artifact
           if: always()
           uses: actions/upload-artifact@v4
