@@ -134,11 +134,13 @@ class MultiSubprocessesRenderer:
         self,
         cmds: list[CmdArg],
         stop_condition_callable: Callable[PS, bool] | None = None,
+        timeout: int | float | None = None,
         render_interval: float = 0.05,
         max_lines: int = 50,
         show_pid_in_panel_title: bool = True,
     ) -> None:
         self.cmds = cmds
+        self.timeout = timeout
         self.render_interval = render_interval
         self.max_lines = max_lines
         self.show_pid_in_panel_title = show_pid_in_panel_title
@@ -183,6 +185,12 @@ class MultiSubprocessesRenderer:
                 return True
         return False
 
+    @property
+    def _is_timeout(self) -> bool:
+        return (self.timeout is not None) and (
+            time.time() - self.start_time
+        ) > self.timeout
+
     def _graceful_cleanup_processes(self) -> None:
         for p in self.process_instances:
             # if the process is still running, kill it
@@ -194,6 +202,8 @@ class MultiSubprocessesRenderer:
                     p.kill()
 
     def start_render(self) -> None:
+        self.start_time = time.time()
+        self.stop_condition_match = False
         with Live(
             self.layout, screen=True, redirect_stdout=False, redirect_stderr=False
         ) as live:
@@ -206,7 +216,20 @@ class MultiSubprocessesRenderer:
                 live.update(self.layout)
                 # If we reach the condition, we will exit the loop
                 if self.stop_condition_callable():
+                    self.stop_condition_match = True
                     break
+                # If we reach timeout
+                if self._is_timeout:
+                    break
+
+        if self._is_timeout and self.start_time is not None:
+            self.console.print(
+                f"[red]Timeout after {(time.time() - self.start_time)} seconds. Shutdown.[/red]"
+            )
+        if self.stop_condition_match:
+            self.console.print(
+                "[yellow]Reach stop_condition_callable, stop rendering.[/yellow]"
+            )
 
     def __enter__(self):
         self._init_layouts()
@@ -222,12 +245,18 @@ class MultiSubprocessesRenderer:
             return True
 
         self._graceful_cleanup_processes()
-        self.console.print("Reach stop_condition_callable, stop rendering.")
         return False
 
 
 # 2. Main script to manage the display and processes
 if __name__ == "__main__":
+    start_time = time.time()
+
+    def stop_condition_callable():
+        if (time.time() - start_time) > 1:
+            return True
+        return False
+
     with MultiSubprocessesRenderer(
         cmds=[
             CmdArg(
@@ -238,6 +267,7 @@ if __name__ == "__main__":
                 [sys.executable, "-u", "examples/fastapi_pub_sub/consumer.py"],
                 panel_title="Consumer process",
             ),
-        ]
+        ],
+        stop_condition_callable=stop_condition_callable,
     ) as renderer:
         renderer.start_render()
