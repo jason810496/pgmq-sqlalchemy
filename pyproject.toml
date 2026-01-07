@@ -1,6 +1,6 @@
 [project]
 name = "pgmq-sqlalchemy"
-version = "0.1.2"
+version = "0.2.0"
 description = "More flexible PGMQ Postgres extension Python client that using sqlalchemy ORM, supporting both async and sync engines, sessionmakers or built from dsn."
 authors = [
     {name = "jason810496", email = "810496@email.wlsh.tyc.edu.tw"}
