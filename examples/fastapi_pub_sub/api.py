@@ -7,9 +7,9 @@ This example demonstrates:
 """
 import os
 from typing import Generator
-from contextlib import contextmanager, asynccontextmanager
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import Session, sessionmaker, declarative_base
@@ -18,7 +18,9 @@ from datetime import datetime
 from pgmq_sqlalchemy import op
 
 # Database configuration - can be overridden by environment variables
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres"
+)
 QUEUE_NAME = os.getenv("QUEUE_NAME", "order_queue")
 
 # SQLAlchemy setup
@@ -47,9 +49,9 @@ class OrderCreate(BaseModel):
     price: float
 
 
-class OrderResponse(BaseModel):
+class CreateOrderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     customer_name: str
     product_name: str
@@ -65,25 +67,26 @@ async def lifespan(app: FastAPI):
     """Initialize database tables and PGMQ queue on startup."""
     # Startup
     Base.metadata.create_all(bind=engine)
-    
+
     # Initialize PGMQ queue
     with SessionLocal() as session:
         op.check_pgmq_ext(session=session, commit=True)
-        
+
         # Create queue if it doesn't exist
         try:
             op.create_queue(QUEUE_NAME, session=session, commit=True)
         except Exception:
             # Queue might already exist, which is fine
             pass
-    
+
     yield
-    
+
     # Shutdown (if needed)
 
 
 # FastAPI app with lifespan
 app = FastAPI(title="Order Management with PGMQ", lifespan=lifespan)
+
 
 # Database dependency
 def get_db() -> Generator[Session, None, None]:
@@ -95,14 +98,16 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-@app.post("/orders", response_model=OrderResponse, status_code=201)
-def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
+@app.post("/orders", status_code=status.HTTP_201_CREATED)
+def create_order(
+    order_data: OrderCreate, db: Session = Depends(get_db)
+) -> CreateOrderResponse:
     """Create a new order and publish it to the message queue.
-    
+
     Args:
         order_data: Order information
         db: Database session
-        
+
     Returns:
         Created order with message ID
     """
@@ -115,7 +120,7 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
     )
     db.add(db_order)
     db.flush()  # Flush to get the ID without committing
-    
+
     # Publish message to PGMQ using op in the same transaction
     message_data = {
         "order_id": db_order.id,
@@ -125,15 +130,15 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
         "price": db_order.price,
         "created_at": db_order.created_at.isoformat(),
     }
-    
+
     msg_id = op.send(QUEUE_NAME, message_data, session=db, commit=False)
-    
+
     # Commit both order and message in the same transaction
     db.commit()
     db.refresh(db_order)
-    
+
     # Return order with message ID
-    return OrderResponse(
+    return CreateOrderResponse(
         id=db_order.id,
         customer_name=db_order.customer_name,
         product_name=db_order.product_name,
@@ -144,14 +149,14 @@ def create_order(order_data: OrderCreate, db: Session = Depends(get_db)):
     )
 
 
-@app.get("/orders/{order_id}", response_model=OrderCreate)
-def get_order(order_id: int, db: Session = Depends(get_db)):
+@app.get("/orders/{order_id}")
+def get_order(order_id: int, db: Session = Depends(get_db)) -> OrderCreate:
     """Get order by ID.
-    
+
     Args:
         order_id: Order ID
         db: Database session
-        
+
     Returns:
         Order information
     """
@@ -164,19 +169,21 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
 @app.get("/messages")
 def get_messages(limit: int = 10, db: Session = Depends(get_db)):
     """Read messages from the PGMQ queue.
-    
+
     Args:
         limit: Number of messages to read (default: 10)
         db: Database session
-        
+
     Returns:
         List of messages from the queue
     """
-    messages = op.read_batch(QUEUE_NAME, vt=30, batch_size=limit, session=db, commit=True)
-    
+    messages = op.read_batch(
+        QUEUE_NAME, vt=30, batch_size=limit, session=db, commit=True
+    )
+
     if not messages:
         return {"messages": []}
-    
+
     return {
         "messages": [
             {
@@ -199,4 +206,5 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -135,12 +135,14 @@ class MultiSubprocessesRenderer:
         cmds: list[CmdArg],
         stop_condition_callable: Callable[PS, bool] | None = None,
         timeout: int | float | None = None,
+        wait_process_init_time: int | None = None,
         render_interval: float = 0.05,
         max_lines: int = 50,
         show_pid_in_panel_title: bool = True,
     ) -> None:
         self.cmds = cmds
         self.timeout = timeout
+        self.wait_process_init_time = wait_process_init_time
         self.render_interval = render_interval
         self.max_lines = max_lines
         self.show_pid_in_panel_title = show_pid_in_panel_title
@@ -166,6 +168,7 @@ class MultiSubprocessesRenderer:
             )
 
     def _init_processes(self) -> None:
+        self.console.print("")
         self.process_instances = [
             ProcessInstance(cmd_arg, self.console) for cmd_arg in self.cmds
         ]
@@ -230,10 +233,16 @@ class MultiSubprocessesRenderer:
             self.console.print(
                 "[yellow]Reach stop_condition_callable, stop rendering.[/yellow]"
             )
+        if self.start_time is not None:
+            self.console.print(
+                f"Took {(time.time() - self.start_time)} seconds to finish."
+            )
 
     def __enter__(self):
         self._init_layouts()
         self._init_processes()
+        if self.wait_process_init_time:
+            time.sleep(self.wait_process_init_time)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
